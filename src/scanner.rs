@@ -131,6 +131,7 @@ fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Op
     let mut first_user_goal: Option<String> = None;
     let mut last_assistant_outcome: Option<String> = None;
     let mut mentioned_repo_roots = BTreeSet::<String>::new();
+    let mut mentioned_files = BTreeSet::<String>::new();
 
     for line in reader.lines() {
         let line = line?;
@@ -160,6 +161,7 @@ fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Op
             && line.contains("\"payload\":{\"type\":\"message\"")
         {
             collect_mentioned_repo_roots(&line, known_product_roots, &mut mentioned_repo_roots);
+            collect_mentioned_files(&line, &mut mentioned_files);
             let text = extract_json_string(&line, "\"text\":\"").map(|text| unescape_json_string(&text));
 
             if line.contains("\"role\":\"user\"") {
@@ -197,6 +199,7 @@ fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Op
         .into_iter()
         .map(PathBuf::from)
         .collect::<Vec<_>>();
+    let mentioned_files = mentioned_files.into_iter().collect::<Vec<_>>();
     let attributed_repo_root =
         choose_attributed_repo_root(&repo_root, &cwd, &mentioned_repo_roots);
 
@@ -207,6 +210,7 @@ fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Op
         repo_root,
         attributed_repo_root,
         mentioned_repo_roots,
+        mentioned_files,
         first_user_goal,
         last_assistant_outcome,
     }))
@@ -460,6 +464,66 @@ fn collect_mentioned_repo_roots(
             mentions.insert(root_string);
         }
     }
+}
+
+fn collect_mentioned_files(line: &str, mentions: &mut BTreeSet<String>) {
+    let mut current = String::new();
+
+    for ch in line.chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, ':' | '/' | '\\' | '.' | '_' | '-') {
+            current.push(ch);
+            continue;
+        }
+
+        maybe_record_file_candidate(&current, mentions);
+        current.clear();
+    }
+
+    maybe_record_file_candidate(&current, mentions);
+}
+
+fn maybe_record_file_candidate(candidate: &str, mentions: &mut BTreeSet<String>) {
+    let cleaned = candidate
+        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && !matches!(ch, ':' | '/' | '\\' | '.' | '_' | '-'))
+        .trim_end_matches('.')
+        .replace("\\\\", "\\");
+
+    if cleaned.is_empty() || !looks_like_file_path(&cleaned) {
+        return;
+    }
+
+    let normalized = cleaned.replace('\\', "/");
+    mentions.insert(normalized);
+}
+
+fn looks_like_file_path(candidate: &str) -> bool {
+    let lower = candidate.to_lowercase();
+    let trimmed = lower
+        .split_once(':')
+        .map(|(path, suffix)| {
+            if suffix.chars().all(|ch| ch.is_ascii_digit()) {
+                path
+            } else {
+                &lower
+            }
+        })
+        .unwrap_or(&lower);
+
+    const FILE_EXTENSIONS: &[&str] = &[
+        ".md", ".rs", ".toml", ".json", ".jsonl", ".py", ".ts", ".tsx", ".js", ".mjs", ".html",
+        ".css", ".yaml", ".yml", ".txt", ".sql", ".sh", ".ps1",
+    ];
+
+    if !FILE_EXTENSIONS.iter().any(|ext| trimmed.ends_with(ext)) {
+        return false;
+    }
+
+    trimmed.contains('/')
+        || trimmed.contains('\\')
+        || trimmed == "readme.md"
+        || trimmed == "agents.md"
+        || trimmed == "cargo.toml"
+        || trimmed == "cargo.lock"
 }
 
 fn choose_attributed_repo_root(

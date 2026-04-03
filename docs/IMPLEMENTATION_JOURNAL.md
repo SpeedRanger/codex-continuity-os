@@ -469,6 +469,88 @@ That is a major usability jump because it lets the user recover intent from lang
 The command is still scan-bound and noticeably slow because every query rescans the archive from disk.
 
 That means indexing is no longer optional polish. It is now a launch blocker.
+
+## Step 10 - Implemented Side-By-Side Session Compare
+
+### Why
+
+The continuity problem is not only:
+
+- "find the chat"
+
+It is also:
+
+- "what is different between this chat and that one?"
+
+That is the `compare` workflow.
+
+### What changed
+
+Replaced the `ccx compare` scaffold with a real comparison path that:
+
+- resolves two session ids from the local archive
+- reports whether they belong to the same attributed repo
+- reports whether they share the same workspace repo
+- infers a simple relationship between them
+- shows summary context for each session
+- compares overlapping versus unique file mentions
+- compares overlapping mentioned repo roots
+
+To make the file diff usable, the implementation also added transcript-level file mention extraction into the scanner model.
+
+### Important refinement during implementation
+
+The first compare output technically worked, but the file list was polluted with global skill paths.
+
+That was not acceptable because the operator needs project signal, not agent infrastructure noise.
+
+The compare view was tightened to prefer repo-relevant files:
+
+- paths inside the attributed repo
+- paths inside the workspace repo
+- obvious repo-relative files like `src/...`, `docs/...`, `frontend/...`, `backend/...`
+
+and to suppress obvious global skill and memory paths.
+
+### Verification
+
+Built and tested a dedicated verification binary:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='D:\saas-workspace\products\codex-continuity-os\.build\iter-compare2'
+cargo.exe build --bin ccx
+cargo.exe test
+```
+
+Then verified:
+
+```powershell
+.build\iter-compare2\debug\ccx.exe compare 019d1f8d-698d-70d1-b07d-f099066d4d34 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+.build\iter-compare2\debug\ccx.exe compare 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973 missing-session-id
+```
+
+Observed behavior:
+
+- correctly identified both known `roompilot-ai` chats as the same attributed repo
+- correctly inferred that the March 27, 2026 chat is the later continuation
+- surfaced project-relevant file overlap such as `frontend/`, `backend/`, `.agent/compare/`, and repo docs
+- returned a clean not-found state when the second session id was invalid
+
+### What functionality this added
+
+The product can now help answer:
+
+- whether two chats are part of the same project thread
+- what each one was about
+- which repo files appear across both versus only one
+
+That is an important launch surface because it moves the app from retrieval toward reasoning over historical work.
+
+### What is still weak
+
+The compare path still depends on full archive scans, so latency is too high for a polished launch experience.
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
 

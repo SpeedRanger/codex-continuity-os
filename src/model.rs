@@ -8,6 +8,7 @@ pub struct SessionSummary {
     pub repo_root: PathBuf,
     pub attributed_repo_root: PathBuf,
     pub mentioned_repo_roots: Vec<PathBuf>,
+    pub mentioned_files: Vec<String>,
     pub first_user_goal: Option<String>,
     pub last_assistant_outcome: Option<String>,
 }
