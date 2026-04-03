@@ -12,7 +12,7 @@ fn main() -> Result<()> {
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Resume { repo } => {
-            let sessions = scanner::scan_sessions()?;
+            let (sessions, source) = scanner::load_sessions()?;
             let repo_root = scanner::current_repo_root(repo.as_deref())?;
             let repo_key = normalize_path(&repo_root);
             let matching: Vec<_> = sessions
@@ -22,6 +22,7 @@ fn run(cli: Cli) -> Result<()> {
 
             println!("ccx resume");
             println!("repo: {}", repo_root.display());
+            println!("session_source: {}", session_source_label(source));
 
             if let Some(best) = matching.first() {
                 println!("best_session: {}", best.id);
@@ -54,7 +55,7 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::Find { query, repo, limit } => {
-            let sessions = scanner::scan_sessions()?;
+            let (sessions, source) = scanner::load_sessions()?;
             let repo_root = match repo.as_deref() {
                 Some(path) => Some(scanner::current_repo_root(Some(path))?),
                 None => None,
@@ -63,6 +64,7 @@ fn run(cli: Cli) -> Result<()> {
 
             println!("ccx find");
             println!("query: {query}");
+            println!("session_source: {}", session_source_label(source));
             if let Some(repo_root) = repo_root.as_ref() {
                 println!("repo_filter: {}", repo_root.display());
             }
@@ -96,13 +98,14 @@ fn run(cli: Cli) -> Result<()> {
             session_a,
             session_b,
         } => {
-            let sessions = scanner::scan_sessions()?;
+            let (sessions, source) = scanner::load_sessions()?;
             let left = scanner::find_session(&sessions, &session_a);
             let right = scanner::find_session(&sessions, &session_b);
 
             println!("ccx compare");
             println!("session_a: {session_a}");
             println!("session_b: {session_b}");
+            println!("session_source: {}", session_source_label(source));
 
             let (left, right) = match (left, right) {
                 (Some(left), Some(right)) => (left, right),
@@ -176,10 +179,11 @@ fn run(cli: Cli) -> Result<()> {
             );
         }
         Command::Pack { session, repo } => {
-            let sessions = scanner::scan_sessions()?;
+            let (sessions, source) = scanner::load_sessions()?;
             println!("ccx pack");
             println!("session: {}", session.as_deref().unwrap_or("auto"));
             println!("repo: {}", repo.as_deref().unwrap_or("auto"));
+            println!("session_source: {}", session_source_label(source));
 
             let source = if let Some(session_id) = session.as_deref() {
                 match scanner::find_session(&sessions, session_id) {
@@ -276,8 +280,9 @@ fn run(cli: Cli) -> Result<()> {
             println!("END_CCX_RESUME_PACK");
         }
         Command::Sessions => {
-            let sessions = scanner::scan_sessions()?;
+            let (sessions, source) = scanner::load_sessions()?;
             println!("ccx sessions");
+            println!("session_source: {}", session_source_label(source));
             println!("count: {}", sessions.len());
 
             for session in sessions.iter().take(10) {
@@ -296,9 +301,10 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::Projects => {
-            let sessions = scanner::scan_sessions()?;
+            let (sessions, source) = scanner::load_sessions()?;
             let projects = scanner::summarize_projects(&sessions);
             println!("ccx projects");
+            println!("session_source: {}", session_source_label(source));
             println!("count: {}", projects.len());
 
             for project in projects.iter().take(10) {
@@ -316,9 +322,9 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::Index => {
-            let sessions = scanner::scan_sessions()?;
+            let sessions = scanner::rebuild_session_index()?;
             println!("ccx index");
-            println!("status: scanned");
+            println!("status: rebuilt");
             println!("sessions_indexed: {}", sessions.len());
         }
     }
@@ -383,6 +389,13 @@ enum Command {
 
 fn normalize_path(path: &std::path::Path) -> String {
     path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
+fn session_source_label(source: scanner::SessionSource) -> &'static str {
+    match source {
+        scanner::SessionSource::Cache => "cache",
+        scanner::SessionSource::Scan => "scan",
+    }
 }
 
 fn display_excerpt(text: Option<&str>) -> String {
@@ -566,4 +579,62 @@ fn pack_file_priority(value: &str) -> (usize, String) {
     };
 
     (bucket, lower)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn sample_session(files: Vec<&str>) -> model::SessionSummary {
+        model::SessionSummary {
+            id: "session".to_owned(),
+            started_at: "2026-04-04T00:00:00.000Z".to_owned(),
+            cwd: PathBuf::from(r"D:\saas-workspace\products\roompilot-ai"),
+            repo_root: PathBuf::from(r"D:\saas-workspace\templates\saas-mvp-template"),
+            attributed_repo_root: PathBuf::from(r"D:\saas-workspace\products\roompilot-ai"),
+            mentioned_repo_roots: vec![PathBuf::from(r"D:\saas-workspace\products\roompilot-ai")],
+            mentioned_files: files.into_iter().map(str::to_owned).collect(),
+            first_user_goal: Some("Goal".to_owned()),
+            last_assistant_outcome: Some("Outcome".to_owned()),
+        }
+    }
+
+    #[test]
+    fn session_focus_files_drops_global_skill_noise() {
+        let session = sample_session(vec![
+            "C:/Users/AKR/.agents/skills/agent-change-walkthrough/SKILL.md",
+            "D:/saas-workspace/products/roompilot-ai/backend/app/core/config.py",
+            "D:/saas-workspace/products/roompilot-ai/frontend/src/App.tsx",
+        ]);
+
+        let focused = session_focus_files(&session);
+
+        assert_eq!(focused.len(), 2);
+        assert!(focused.iter().all(|value| !value.contains("/.agents/skills/")));
+    }
+
+    #[test]
+    fn dedupe_values_preserves_first_seen_order() {
+        let values = vec![
+            "README.md".to_owned(),
+            "src/main.rs".to_owned(),
+            "readme.md".to_owned(),
+        ];
+
+        let deduped = dedupe_values(&values);
+
+        assert_eq!(deduped, vec!["README.md".to_owned(), "src/main.rs".to_owned()]);
+    }
+
+    #[test]
+    fn pack_file_priority_prefers_code_before_history_noise() {
+        let code_priority =
+            pack_file_priority("D:/saas-workspace/products/roompilot-ai/backend/app/core/config.py");
+        let history_priority = pack_file_priority(
+            "D:/saas-workspace/products/roompilot-ai/.agent/history/api/index.jsonl",
+        );
+
+        assert!(code_priority < history_priority);
+    }
 }

@@ -638,6 +638,169 @@ That is a major launch capability because it closes the loop from:
 The command is still scan-bound because it reloads the archive for every invocation.
 
 At this point, indexing and automated tests are the main launch blockers left.
+
+## Step 12 - Added Cache-Backed Session Loading
+
+### Why
+
+All core commands were still rescanning the archive on every invocation.
+
+That was too slow for launch.
+
+### What changed
+
+Added a dedicated continuity cache home:
+
+- `C:\Users\AKR\.codex-continuity\cache\session_index.tsv`
+
+Implemented:
+
+- `ccx index` as an explicit cache rebuild
+- normal command loading from cache when available
+- scan fallback plus cache write when no cache exists yet
+
+### Important correction during implementation
+
+The first cache validation strategy used archive modification times.
+
+That failed in practice because the current live Codex session updates its rollout file constantly, which invalidated the cache almost every turn.
+
+The cache policy was corrected so:
+
+- `ccx index` is the explicit refresh point
+- normal commands trust the last built cache for speed
+
+That is the correct short-term tradeoff for this product.
+
+### Verification
+
+Built a dedicated verification binary and rebuilt the cache:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='D:\saas-workspace\products\codex-continuity-os\.build\iter-index2'
+cargo.exe build --bin ccx
+.build\iter-index2\debug\ccx.exe index
+```
+
+Confirmed:
+
+- cache file exists at `C:\Users\AKR\.codex-continuity\cache\session_index.tsv`
+- cache file size was about `1.6 MB`
+- warm `projects` and `resume` runs reported `session_source: cache`
+
+### What functionality this added
+
+The product now has a persistent local index and a stable fast path for normal use.
+
+This is a real launch milestone because it changes the UX from:
+
+- cold archive miner
+
+to:
+
+- continuity tool with a warm local memory layer
+
+## Step 13 - Added The First Real Unit Test Suite
+
+### Why
+
+A continuity tool without tests is too easy to break in subtle ways.
+
+The riskiest parts here are not generic CLI wiring. They are the heuristics:
+
+- repo attribution
+- search relevance
+- cache serialization
+- file detection
+- file filtering
+- pack prioritization
+
+### What changed
+
+Added `9` unit tests covering:
+
+- session meta parsing
+- indirect repo attribution
+- direct repo attribution
+- file-path detection
+- search with repo filtering
+- cache roundtrip serialization
+- file-noise filtering
+- stable dedupe behavior
+- pack file prioritization
+
+### Verification
+
+Ran:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='D:\saas-workspace\products\codex-continuity-os\.build\iter-tests'
+cargo.exe test
+cargo.exe build --bin ccx
+```
+
+First run exposed one real bug:
+
+- standalone filename detection was too narrow and failed on `PROMPT_PROFILES.md`
+
+That was fixed, then rerun cleanly.
+
+Final result:
+
+- `9 passed`
+- `0 failed`
+
+## Step 14 - Ran An Integrated Verification Sweep
+
+### Why
+
+Passing isolated milestone checks is not enough. The current build needed one end-to-end command sweep on the cache-backed binary.
+
+### Verification sweep
+
+Ran successfully on the current build:
+
+```powershell
+.build\iter-tests\debug\ccx.exe projects
+.build\iter-tests\debug\ccx.exe resume --repo D:\saas-workspace\products\roompilot-ai
+.build\iter-tests\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
+.build\iter-tests\debug\ccx.exe compare 019d1f8d-698d-70d1-b07d-f099066d4d34 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+.build\iter-tests\debug\ccx.exe pack --repo D:\saas-workspace\products\roompilot-ai
+```
+
+Observed behavior:
+
+- `projects` read from cache
+- `resume` read from cache and recovered the correct `roompilot-ai` session
+- `find` read from cache and found the `prompt profiles` chat
+- `compare` read from cache and correctly inferred same-repo continuation
+- `pack` read from cache and produced a compact resume artifact with the right latest session and context anchor
+
+## Launch Snapshot
+
+At this point the product includes:
+
+- real archive scanning
+- persistent cache
+- `sessions`
+- `projects`
+- `resume`
+- `find`
+- `compare`
+- `pack`
+- step-by-step implementation log
+- milestone git history
+- a real unit test suite
+
+## Remaining Known Limits
+
+- cache refresh is explicit through `ccx index`, not automatic
+- file extraction remains heuristic
+- there is no packaged installer yet
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
 

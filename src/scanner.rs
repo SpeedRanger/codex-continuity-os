@@ -1,16 +1,24 @@
 use std::{
     collections::BTreeSet,
     env,
+    fs,
     fs::File,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::Command,
+    time::UNIX_EPOCH,
 };
 
 use anyhow::{Context, Result};
 use walkdir::WalkDir;
 
 use crate::model::{ProjectSummary, SearchHit, SessionSummary};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionSource {
+    Cache,
+    Scan,
+}
 
 pub fn scan_sessions() -> Result<Vec<SessionSummary>> {
     let sessions_root = codex_home()?.join("sessions");
@@ -33,6 +41,24 @@ pub fn scan_sessions() -> Result<Vec<SessionSummary>> {
     }
 
     sessions.sort_by(|left, right| right.started_at.cmp(&left.started_at));
+    Ok(sessions)
+}
+
+pub fn load_sessions() -> Result<(Vec<SessionSummary>, SessionSource)> {
+    if let Some(cached) = read_cached_sessions(None)? {
+        return Ok((cached, SessionSource::Cache));
+    }
+
+    let fingerprint = session_fingerprint()?;
+    let sessions = scan_sessions()?;
+    write_cached_sessions(&fingerprint, &sessions)?;
+    Ok((sessions, SessionSource::Scan))
+}
+
+pub fn rebuild_session_index() -> Result<Vec<SessionSummary>> {
+    let fingerprint = session_fingerprint()?;
+    let sessions = scan_sessions()?;
+    write_cached_sessions(&fingerprint, &sessions)?;
     Ok(sessions)
 }
 
@@ -284,8 +310,336 @@ fn codex_home() -> Result<PathBuf> {
     Ok(PathBuf::from(user_profile).join(".codex"))
 }
 
+fn continuity_home() -> Result<PathBuf> {
+    if let Ok(path) = env::var("CCX_HOME") {
+        return Ok(PathBuf::from(path));
+    }
+
+    let user_profile = env::var("USERPROFILE").context("USERPROFILE is not set")?;
+    Ok(PathBuf::from(user_profile).join(".codex-continuity"))
+}
+
+fn cache_file_path() -> Result<PathBuf> {
+    Ok(continuity_home()?.join("cache").join("session_index.tsv"))
+}
+
+fn session_fingerprint() -> Result<SessionFingerprint> {
+    let sessions_root = codex_home()?.join("sessions");
+    let mut file_count = 0usize;
+    let mut latest_modified_epoch = 0u64;
+
+    if !sessions_root.exists() {
+        return Ok(SessionFingerprint {
+            file_count,
+            latest_modified_epoch,
+        });
+    }
+
+    for entry in WalkDir::new(&sessions_root)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .filter(|entry| entry.file_type().is_file())
+        .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("jsonl"))
+    {
+        file_count += 1;
+        let modified_epoch = entry
+            .metadata()
+            .ok()
+            .and_then(|metadata| metadata.modified().ok())
+            .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+            .map(|duration| duration.as_secs())
+            .unwrap_or(0);
+
+        if modified_epoch > latest_modified_epoch {
+            latest_modified_epoch = modified_epoch;
+        }
+    }
+
+    Ok(SessionFingerprint {
+        file_count,
+        latest_modified_epoch,
+    })
+}
+
+fn read_cached_sessions(fingerprint: Option<&SessionFingerprint>) -> Result<Option<Vec<SessionSummary>>> {
+    let cache_file = cache_file_path()?;
+    if !cache_file.exists() {
+        return Ok(None);
+    }
+
+    let file = File::open(&cache_file)
+        .with_context(|| format!("failed to open cache file {}", cache_file.display()))?;
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+    let Some(header_line) = lines.next() else {
+        return Ok(None);
+    };
+    let header_line = header_line?;
+
+    if !cache_header_matches(&header_line, fingerprint) {
+        return Ok(None);
+    }
+
+    let mut sessions = Vec::new();
+    for line in lines {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        if let Some(session) = parse_cached_session_line(&line) {
+            sessions.push(session);
+        }
+    }
+
+    sessions.sort_by(|left, right| right.started_at.cmp(&left.started_at));
+    Ok(Some(sessions))
+}
+
+fn write_cached_sessions(fingerprint: &SessionFingerprint, sessions: &[SessionSummary]) -> Result<()> {
+    let cache_file = cache_file_path()?;
+    if let Some(parent) = cache_file.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create cache directory {}", parent.display()))?;
+    }
+
+    let mut output = String::new();
+    output.push_str(&format!(
+        "CCX1\t{}\t{}\n",
+        fingerprint.file_count, fingerprint.latest_modified_epoch
+    ));
+
+    for session in sessions {
+        output.push_str(&serialize_cached_session_line(session));
+        output.push('\n');
+    }
+
+    fs::write(&cache_file, output)
+        .with_context(|| format!("failed to write cache file {}", cache_file.display()))?;
+    Ok(())
+}
+
+fn cache_header_matches(header: &str, fingerprint: Option<&SessionFingerprint>) -> bool {
+    let mut parts = header.split('\t');
+    let Some(version) = parts.next() else {
+        return false;
+    };
+    let Some(file_count) = parts.next() else {
+        return false;
+    };
+    let Some(latest_modified_epoch) = parts.next() else {
+        return false;
+    };
+
+    if version != "CCX1" {
+        return false;
+    }
+
+    match fingerprint {
+        Some(fingerprint) => {
+            file_count.parse::<usize>().ok() == Some(fingerprint.file_count)
+                && latest_modified_epoch.parse::<u64>().ok() == Some(fingerprint.latest_modified_epoch)
+        }
+        None => true,
+    }
+}
+
+fn serialize_cached_session_line(session: &SessionSummary) -> String {
+    [
+        sanitize_cache_field(&session.id),
+        sanitize_cache_field(&session.started_at),
+        sanitize_cache_field(&session.cwd.display().to_string()),
+        sanitize_cache_field(&session.repo_root.display().to_string()),
+        sanitize_cache_field(&session.attributed_repo_root.display().to_string()),
+        sanitize_cache_field(
+            &session
+                .mentioned_repo_roots
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join("||"),
+        ),
+        sanitize_cache_field(&session.mentioned_files.join("||")),
+        sanitize_cache_field(session.first_user_goal.as_deref().unwrap_or_default()),
+        sanitize_cache_field(session.last_assistant_outcome.as_deref().unwrap_or_default()),
+    ]
+    .join("\t")
+}
+
+fn parse_cached_session_line(line: &str) -> Option<SessionSummary> {
+    let parts = line.splitn(9, '\t').collect::<Vec<_>>();
+    if parts.len() != 9 {
+        return None;
+    }
+
+    let mentioned_repo_roots = split_cached_list(parts[5])
+        .into_iter()
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    let mentioned_files = split_cached_list(parts[6]);
+
+    Some(SessionSummary {
+        id: parts[0].to_owned(),
+        started_at: parts[1].to_owned(),
+        cwd: PathBuf::from(parts[2]),
+        repo_root: PathBuf::from(parts[3]),
+        attributed_repo_root: PathBuf::from(parts[4]),
+        mentioned_repo_roots,
+        mentioned_files,
+        first_user_goal: empty_to_none(parts[7]),
+        last_assistant_outcome: empty_to_none(parts[8]),
+    })
+}
+
+fn sanitize_cache_field(value: &str) -> String {
+    value.replace('\t', "    ").replace('\n', " ").replace('\r', " ")
+}
+
+fn split_cached_list(value: &str) -> Vec<String> {
+    if value.trim().is_empty() {
+        return Vec::new();
+    }
+
+    value
+        .split("||")
+        .filter(|item| !item.trim().is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn empty_to_none(value: &str) -> Option<String> {
+    if value.trim().is_empty() {
+        None
+    } else {
+        Some(value.to_owned())
+    }
+}
+
 pub fn normalize_path(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SessionFingerprint {
+    file_count: usize,
+    latest_modified_epoch: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_session(
+        id: &str,
+        repo: &str,
+        goal: &str,
+        outcome: &str,
+    ) -> SessionSummary {
+        SessionSummary {
+            id: id.to_owned(),
+            started_at: "2026-04-04T00:00:00.000Z".to_owned(),
+            cwd: PathBuf::from(repo),
+            repo_root: PathBuf::from(repo),
+            attributed_repo_root: PathBuf::from(repo),
+            mentioned_repo_roots: vec![PathBuf::from(repo)],
+            mentioned_files: vec![
+                format!("{repo}/docs/PROMPT_PROFILES.md"),
+                format!("{repo}/backend/app/core/config.py"),
+            ],
+            first_user_goal: Some(goal.to_owned()),
+            last_assistant_outcome: Some(outcome.to_owned()),
+        }
+    }
+
+    #[test]
+    fn extract_session_meta_fields_parses_expected_values() {
+        let line = r#"{"timestamp":"2026-04-04T00:00:00.000Z","type":"session_meta","payload":{"id":"019-test-session","timestamp":"2026-04-04T00:00:00.000Z","cwd":"D:\\saas-workspace\\products\\roompilot-ai","originator":"codex_cli"}}"#;
+
+        let fields = extract_session_meta_fields(line).expect("session meta should parse");
+
+        assert_eq!(fields.id, "019-test-session");
+        assert_eq!(fields.timestamp, "2026-04-04T00:00:00.000Z");
+        assert_eq!(fields.cwd, r#"D:\saas-workspace\products\roompilot-ai"#);
+    }
+
+    #[test]
+    fn indirect_workspace_prefers_mentioned_repo_root() {
+        let repo_root = PathBuf::from(r"D:\saas-workspace\templates\saas-mvp-template");
+        let cwd = repo_root.clone();
+        let mentioned = vec![PathBuf::from(r"D:\saas-workspace\products\roompilot-ai")];
+
+        let attributed = choose_attributed_repo_root(&repo_root, &cwd, &mentioned);
+
+        assert_eq!(
+            normalize_path(&attributed),
+            "d:/saas-workspace/products/roompilot-ai"
+        );
+    }
+
+    #[test]
+    fn direct_workspace_keeps_repo_root() {
+        let repo_root = PathBuf::from(r"D:\saas-workspace\products\roompilot-ai");
+        let cwd = repo_root.clone();
+        let mentioned = vec![PathBuf::from(r"D:\saas-workspace\products\pix-finder")];
+
+        let attributed = choose_attributed_repo_root(&repo_root, &cwd, &mentioned);
+
+        assert_eq!(normalize_path(&attributed), normalize_path(&repo_root));
+    }
+
+    #[test]
+    fn file_path_detection_filters_reasonable_candidates() {
+        assert!(looks_like_file_path("backend/app/core/config.py"));
+        assert!(looks_like_file_path("PROMPT_PROFILES.md"));
+        assert!(!looks_like_file_path("roompilot-ai"));
+        assert!(!looks_like_file_path("2026-04-04"));
+    }
+
+    #[test]
+    fn search_sessions_respects_repo_filter_and_query_terms() {
+        let roompilot = sample_session(
+            "roompilot-session",
+            r"D:\saas-workspace\products\roompilot-ai",
+            "Recover roompilot-ai continuity",
+            "PROMPT_PROFILES.md was updated during the FastAPI migration.",
+        );
+        let pixfinder = sample_session(
+            "pixfinder-session",
+            r"D:\saas-workspace\products\pix-finder",
+            "Work on pix-finder",
+            "No prompt profile changes here.",
+        );
+        let sessions = vec![roompilot, pixfinder];
+
+        let hits = search_sessions(
+            &sessions,
+            "prompt profiles",
+            Some(Path::new(r"D:\saas-workspace\products\roompilot-ai")),
+            5,
+        );
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].session.id, "roompilot-session");
+    }
+
+    #[test]
+    fn cached_session_line_roundtrip_preserves_fields() {
+        let original = sample_session(
+            "roundtrip-session",
+            r"D:\saas-workspace\products\roompilot-ai",
+            "Goal text",
+            "Outcome text",
+        );
+
+        let serialized = serialize_cached_session_line(&original);
+        let parsed = parse_cached_session_line(&serialized).expect("cached line should parse");
+
+        assert_eq!(parsed.id, original.id);
+        assert_eq!(parsed.started_at, original.started_at);
+        assert_eq!(parsed.mentioned_files, original.mentioned_files);
+        assert_eq!(parsed.first_user_goal, original.first_user_goal);
+        assert_eq!(parsed.last_assistant_outcome, original.last_assistant_outcome);
+    }
 }
 
 fn repo_matches(session: &SessionSummary, repo_key: Option<&str>) -> bool {
@@ -520,6 +874,7 @@ fn looks_like_file_path(candidate: &str) -> bool {
 
     trimmed.contains('/')
         || trimmed.contains('\\')
+        || (trimmed.matches('.').count() == 1 && trimmed.len() > 4)
         || trimmed == "readme.md"
         || trimmed == "agents.md"
         || trimmed == "cargo.toml"

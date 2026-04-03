@@ -4,7 +4,7 @@ Last updated: 2026-04-04
 
 ## Current Goal
 
-Push Codex Continuity OS from early prototype into a launchable CLI product with real resume, search, compare, and pack workflows backed by local Codex history.
+Ship the current CLI product as a launch-ready local-first continuity tool for Codex, with clear docs, cache-backed performance, and enough tests to trust the core heuristics.
 
 ## State
 
@@ -20,19 +20,22 @@ Push Codex Continuity OS from early prototype into a launchable CLI product with
 - `ccx find` now returns ranked matches with repo filtering and match reasons
 - `ccx compare` now provides side-by-side continuity views with relation inference and repo-focused file overlap
 - `ccx pack` now generates a pasteable resume pack with a latest checkpoint, context anchor, related sessions, and prioritized files
+- commands now use a cache under `C:/Users/AKR/.codex-continuity/cache/session_index.tsv`
+- `ccx index` explicitly rebuilds the cache and normal commands prefer cache reads
+- automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
 - verified recovery exists for `D:/saas-workspace/products/roompilot-ai`
 - current grouped project count is `30`
 - current scanned session count is `319`
 
 ## Last Change
 
-Implemented `ccx pack` as a real resume-pack generator and verified it against `roompilot-ai` using both `--repo` and `--session`.
+Added cache-backed session loading and a real unit test suite, then reran the full command surface against the cache-backed build.
 
 ## Next Actions
 
-1. Add index persistence so the app stops rescanning the archive on every command.
-2. Add automated tests for parsing, attribution, search, compare helpers, and pack helpers.
-3. Do a final launch verification sweep and document exact usage.
+1. Keep the implementation journal and launch docs in sync with the shipped state.
+2. If launching publicly, decide whether to publish as source-only or add packaging/install instructions.
+3. Future product work: smarter auto-refresh, stronger file extraction, richer resume ranking.
 
 ## Blockers / Decisions
 
@@ -41,9 +44,10 @@ Implemented `ccx pack` as a real resume-pack generator and verified it against `
   - `C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin`
 - On Windows, rebuilding `target\debug\ccx.exe` while a prior `ccx` process is still running can fail with `Access is denied (os error 5)`. A dedicated `CARGO_TARGET_DIR` is the safest verification path during active iteration.
 - Repo attribution is now stronger than pure `cwd` matching, but still heuristic. It relies on known product roots and transcript mentions, not a formal project identity graph yet.
+- Cache freshness is explicit, not magical. `ccx index` is the refresh control.
 
 ## Canonical Workspace
 
 - Repo path: `D:/saas-workspace/products/codex-continuity-os`
 - Canonical global memory remains in `C:/Users/AKR/.codex/memories/`
-- This folder is currently not a git repository yet.
+- This folder is now a git repository with milestone commits.
