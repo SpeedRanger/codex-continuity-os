@@ -8,7 +8,7 @@ The product goal is simple: open any repo and instantly understand what happened
 
 - Rust CLI app exists and builds locally
 - local Codex session archive scanning works on real data
-- `ccx sessions`, `ccx projects`, `ccx resume`, `ccx find`, and `ccx compare` are functional
+- `ccx sessions`, `ccx projects`, `ccx resume`, `ccx find`, `ccx compare`, and `ccx pack` are functional
 - indirect repo attribution now recovers downstream repos from template-based sessions
 - `compare`, `pack`, indexing, and launch hardening are still in progress
 
@@ -44,6 +44,9 @@ The product goal is simple: open any repo and instantly understand what happened
 - `ccx compare <session-a> <session-b>`
   - compares two sessions side-by-side
   - shows repo/context continuity, goals, outcomes, overlapping files, and unique files per session
+- `ccx pack [--repo <path>] [--session <id>]`
+  - generates a compact resume block for the next Codex chat
+  - chooses both a latest checkpoint and a richer context anchor when possible
 
 ## Verified Example
 

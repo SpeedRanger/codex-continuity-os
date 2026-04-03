@@ -175,10 +175,105 @@ fn run(cli: Cli) -> Result<()> {
                 preview_values(&common_repos, 8)
             );
         }
-        Command::Pack { session } => {
+        Command::Pack { session, repo } => {
+            let sessions = scanner::scan_sessions()?;
             println!("ccx pack");
             println!("session: {}", session.as_deref().unwrap_or("auto"));
-            println!("status: scaffolded");
+            println!("repo: {}", repo.as_deref().unwrap_or("auto"));
+
+            let source = if let Some(session_id) = session.as_deref() {
+                match scanner::find_session(&sessions, session_id) {
+                    Some(found) => found,
+                    None => {
+                        println!("status: session not found");
+                        return Ok(());
+                    }
+                }
+            } else {
+                let repo_root = scanner::current_repo_root(repo.as_deref())?;
+                let repo_key = normalize_path(&repo_root);
+                match sessions
+                    .iter()
+                    .find(|candidate| normalize_path(&candidate.attributed_repo_root) == repo_key)
+                {
+                    Some(found) => found,
+                    None => {
+                        println!("status: no known session for repo");
+                        return Ok(());
+                    }
+                }
+            };
+
+            let related = sessions
+                .iter()
+                .filter(|candidate| {
+                    normalize_path(&candidate.attributed_repo_root)
+                        == normalize_path(&source.attributed_repo_root)
+                })
+                .take(3)
+                .collect::<Vec<_>>();
+            let context_anchor = related
+                .iter()
+                .max_by_key(|session| context_score(session))
+                .copied()
+                .unwrap_or(source);
+            let mut files_that_matter = dedupe_values(
+                &related
+                    .iter()
+                    .flat_map(|session| session_focus_files(session))
+                    .collect::<Vec<_>>(),
+            );
+            files_that_matter.sort_by_key(|value| pack_file_priority(value));
+
+            println!("source_session: {}", source.id);
+            println!("started_at: {}", source.started_at);
+            println!("workspace_repo: {}", source.repo_root.display());
+            println!("attributed_repo: {}", source.attributed_repo_root.display());
+            println!("related_sessions: {}", related.len());
+            println!("context_anchor_session: {}", context_anchor.id);
+            println!();
+            println!("BEGIN_CCX_RESUME_PACK");
+            println!("Repo: {}", source.attributed_repo_root.display());
+            println!("Latest session: {}", source.id);
+            println!("Latest session started at: {}", source.started_at);
+            println!("Context anchor session: {}", context_anchor.id);
+            println!(
+                "Current goal: {}",
+                excerpt_or_default(source.first_user_goal.as_deref(), 320, "No meaningful user goal extracted.")
+            );
+            println!(
+                "Best continuity summary: {}",
+                excerpt_or_default(
+                    context_anchor.last_assistant_outcome.as_deref(),
+                    700,
+                    "No meaningful assistant outcome extracted."
+                )
+            );
+            println!("Recent related sessions:");
+            for session in &related {
+                println!(
+                    "- {} | {} | {}",
+                    session.started_at,
+                    session.id,
+                    excerpt_or_default(
+                        session.first_user_goal.as_deref(),
+                        110,
+                        "no meaningful user goal extracted"
+                    )
+                );
+            }
+            println!("Files that mattered:");
+            for file in files_that_matter.iter().take(10) {
+                println!("- {file}");
+            }
+            println!("Suggested resume prompt:");
+            println!(
+                "Continue work on `{}`. Use latest session `{}` as the most recent checkpoint and context anchor session `{}` as the richest historical summary. Review the listed files before making new changes.",
+                source.attributed_repo_root.display(),
+                source.id,
+                context_anchor.id
+            );
+            println!("END_CCX_RESUME_PACK");
         }
         Command::Sessions => {
             let sessions = scanner::scan_sessions()?;
@@ -274,6 +369,9 @@ enum Command {
         /// Optional session id to force a specific pack source.
         #[arg(long)]
         session: Option<String>,
+        /// Optional repo path to build a pack for when session is not provided.
+        #[arg(long)]
+        repo: Option<String>,
     },
     /// List known sessions.
     Sessions,
@@ -288,8 +386,7 @@ fn normalize_path(path: &std::path::Path) -> String {
 }
 
 fn display_excerpt(text: Option<&str>) -> String {
-    text.map(|value| scanner::limit_text(value, 140))
-        .unwrap_or_else(|| "no meaningful text extracted".to_owned())
+    excerpt_or_default(text, 140, "no meaningful text extracted")
 }
 
 fn preview_values(values: &[String], limit: usize) -> String {
@@ -362,6 +459,25 @@ fn infer_session_relation(
     }
 }
 
+fn dedupe_values(values: &[String]) -> Vec<String> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut ordered = Vec::new();
+
+    for value in values {
+        let key = value.to_lowercase();
+        if seen.insert(key) {
+            ordered.push(value.clone());
+        }
+    }
+
+    ordered
+}
+
+fn excerpt_or_default(text: Option<&str>, max_len: usize, fallback: &str) -> String {
+    text.map(|value| scanner::limit_text(value, max_len))
+        .unwrap_or_else(|| fallback.to_owned())
+}
+
 fn session_focus_files(session: &model::SessionSummary) -> Vec<String> {
     let attributed_root = normalize_path(&session.attributed_repo_root);
     let workspace_root = normalize_path(&session.repo_root);
@@ -410,4 +526,44 @@ fn is_repo_file_candidate(value: &str, attributed_root: &str, workspace_root: &s
             normalized.as_str(),
             "readme.md" | "agents.md" | "cargo.toml" | "cargo.lock" | "continuity.md"
         )
+}
+
+fn context_score(session: &model::SessionSummary) -> usize {
+    session
+        .last_assistant_outcome
+        .as_deref()
+        .map(|text| text.len())
+        .unwrap_or(0)
+        + session.mentioned_files.len() * 4
+}
+
+fn pack_file_priority(value: &str) -> (usize, String) {
+    let lower = value.replace('\\', "/").to_lowercase();
+    let bucket = if lower.contains("/backend/")
+        || lower.contains("/frontend/")
+        || lower.contains("/src/")
+    {
+        0
+    } else if lower.ends_with("/state_of_play.md")
+        || lower.ends_with("/prompt_profiles.md")
+        || lower.ends_with("/agents.md")
+        || lower.ends_with("/architecture.md")
+        || lower.ends_with("/continuity.md")
+    {
+        1
+    } else if lower.contains("/docs/") {
+        2
+    } else if lower.contains("/.agent/compare/") {
+        3
+    } else if lower.contains("/.agent/e2e/") {
+        4
+    } else if lower.contains("/.agent/history/") {
+        6
+    } else if lower.starts_with("./scripts/") {
+        7
+    } else {
+        5
+    };
+
+    (bucket, lower)
 }

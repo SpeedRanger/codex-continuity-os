@@ -551,6 +551,93 @@ That is an important launch surface because it moves the app from retrieval towa
 ### What is still weak
 
 The compare path still depends on full archive scans, so latency is too high for a polished launch experience.
+
+## Step 11 - Implemented Resume Pack Generation
+
+### Why
+
+The product needs a bridge from historical continuity into the next active chat.
+
+That is the `pack` workflow:
+
+- not just "find the right session"
+- but "give me the compact context block I should resume from"
+
+### What changed
+
+Replaced the `ccx pack` scaffold with a real generator that supports:
+
+```powershell
+ccx pack --repo <path>
+ccx pack --session <id>
+```
+
+The pack now includes:
+
+- latest checkpoint session
+- context anchor session
+- current goal
+- best continuity summary
+- recent related sessions
+- prioritized files that mattered
+- suggested resume prompt
+
+### Important refinement during implementation
+
+The first pack version used the latest session's assistant reply as the main summary.
+
+That was often wrong in practice because the latest reply can be procedural, narrow, or even meta-conversational.
+
+The implementation was corrected to distinguish:
+
+- latest checkpoint
+- best context anchor
+
+The context anchor is chosen from nearby related sessions using a simple usefulness heuristic so the generated pack can carry richer history forward.
+
+The file list was also tightened to prioritize repo-relevant code and docs rather than dumping agent-history noise.
+
+### Verification
+
+Built and tested a dedicated verification binary:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='D:\saas-workspace\products\codex-continuity-os\.build\iter-pack2'
+cargo.exe build --bin ccx
+cargo.exe test
+```
+
+Then verified:
+
+```powershell
+.build\iter-pack2\debug\ccx.exe pack --repo D:\saas-workspace\products\roompilot-ai
+.build\iter-pack2\debug\ccx.exe pack --session 019d1f8d-698d-70d1-b07d-f099066d4d34
+```
+
+Observed behavior:
+
+- repo mode selected the March 27, 2026 chat as the latest checkpoint
+- repo mode selected the March 24, 2026 chat as the richer context anchor
+- the generated file list prioritized `backend/`, `frontend/`, tests, and key config/prompt files
+- explicit session mode also generated a valid pack
+
+### What functionality this added
+
+The app can now generate a real handoff artifact for the next Codex conversation instead of only helping the user search and compare old ones.
+
+That is a major launch capability because it closes the loop from:
+
+- archive
+- to understanding
+- to resumption
+
+### What is still weak
+
+The command is still scan-bound because it reloads the archive for every invocation.
+
+At this point, indexing and automated tests are the main launch blockers left.
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
 

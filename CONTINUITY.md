@@ -19,18 +19,19 @@ Push Codex Continuity OS from early prototype into a launchable CLI product with
 - `ccx resume` now supports indirect repo attribution and can recover downstream repos mentioned from template or worktree sessions
 - `ccx find` now returns ranked matches with repo filtering and match reasons
 - `ccx compare` now provides side-by-side continuity views with relation inference and repo-focused file overlap
+- `ccx pack` now generates a pasteable resume pack with a latest checkpoint, context anchor, related sessions, and prioritized files
 - verified recovery exists for `D:/saas-workspace/products/roompilot-ai`
 - current grouped project count is `30`
 - current scanned session count is `319`
 
 ## Last Change
 
-Implemented `ccx compare` as a real side-by-side session comparison command and verified it against the March 24 and March 27 `roompilot-ai` sessions.
+Implemented `ccx pack` as a real resume-pack generator and verified it against `roompilot-ai` using both `--repo` and `--session`.
 
 ## Next Actions
 
-1. Implement `ccx pack` to generate a compact resume prompt from a chosen or inferred session.
-2. Add index persistence and automated tests.
+1. Add index persistence so the app stops rescanning the archive on every command.
+2. Add automated tests for parsing, attribution, search, compare helpers, and pack helpers.
 3. Do a final launch verification sweep and document exact usage.
 
 ## Blockers / Decisions
