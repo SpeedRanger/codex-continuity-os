@@ -378,6 +378,97 @@ This kind of environment breakage is exactly the sort of thing that can quietly 
 ### Current strongest proof point
 
 The product can already recover `roompilot-ai` history correctly from a non-`roompilot-ai` workspace. That is the clearest evidence so far that the core idea is real.
+
+## Step 9 - Implemented Ranked Session Search
+
+### Why
+
+After `resume`, the next core continuity question is:
+
+- "Which chat was the one where we changed X?"
+
+That is the `find` workflow. Without it, the product still forces the user to remember too much.
+
+### What changed
+
+Replaced the `ccx find` scaffold with a real search path that:
+
+- scans historical sessions
+- ranks candidates by match score
+- supports optional repo scoping
+- explains why each result matched
+
+Search currently considers:
+
+- first user goal
+- last assistant outcome
+- attributed repo root
+- workspace repo root
+- mentioned repo roots
+- session id
+
+The command now supports:
+
+```powershell
+ccx find "<query>"
+ccx find "<query>" --repo <path>
+ccx find "<query>" --limit <n>
+```
+
+### Important correction during implementation
+
+The first search pass reused the same 140-character clipped text used for terminal display.
+
+That was a real design mistake:
+
+- good for tidy output
+- bad for recall
+
+Search was updated to keep full extracted text internally and clip only when printing results.
+
+That separation is the correct pattern for this product:
+
+- full text for retrieval
+- clipped text for display
+
+### Verification
+
+Built a fresh verification binary using a dedicated target dir to avoid Windows file-lock issues:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='D:\saas-workspace\products\codex-continuity-os\.build\iter-find'
+cargo.exe build --bin ccx
+```
+
+Then verified on live archive data:
+
+```powershell
+.build\iter-find\debug\ccx.exe find "roompilot-ai"
+.build\iter-find\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
+.build\iter-find\debug\ccx.exe find "FastAPI migration" --repo D:\saas-workspace\products\roompilot-ai
+```
+
+Observed results:
+
+- `roompilot-ai` returned the two expected historical chats first:
+  - `019d30b1-1b6f-77a3-8c4b-cfcfe2d10973`
+  - `019d1f8d-698d-70d1-b07d-f099066d4d34`
+- `prompt profiles` inside the `roompilot-ai` repo returned the March 24, 2026 session
+- `FastAPI migration` inside the `roompilot-ai` repo returned the same March 24, 2026 session
+
+### What functionality this added
+
+The app can now answer memory-style queries instead of only repo-centric ones.
+
+That is a major usability jump because it lets the user recover intent from language, not only from filesystem location.
+
+### What is still weak
+
+The command is still scan-bound and noticeably slow because every query rescans the archive from disk.
+
+That means indexing is no longer optional polish. It is now a launch blocker.
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
 

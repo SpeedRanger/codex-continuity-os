@@ -10,7 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use walkdir::WalkDir;
 
-use crate::model::{ProjectSummary, SessionSummary};
+use crate::model::{ProjectSummary, SearchHit, SessionSummary};
 
 pub fn scan_sessions() -> Result<Vec<SessionSummary>> {
     let sessions_root = codex_home()?.join("sessions");
@@ -60,6 +60,55 @@ pub fn summarize_projects(sessions: &[SessionSummary]) -> Vec<ProjectSummary> {
     let mut projects: Vec<_> = grouped.into_values().collect();
     projects.sort_by(|left, right| right.latest_started_at.cmp(&left.latest_started_at));
     projects
+}
+
+pub fn search_sessions(
+    sessions: &[SessionSummary],
+    query: &str,
+    repo_filter: Option<&Path>,
+    limit: usize,
+) -> Vec<SearchHit> {
+    let trimmed_query = compact_text(query);
+    if trimmed_query.is_empty() {
+        return Vec::new();
+    }
+
+    let query_norm = trimmed_query.to_lowercase();
+    let terms = query_norm
+        .split_whitespace()
+        .filter(|term| !term.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let repo_key = repo_filter.map(normalize_path);
+
+    let mut strict_hits = sessions
+        .iter()
+        .filter(|session| repo_matches(session, repo_key.as_deref()))
+        .filter_map(|session| score_session(session, &query_norm, &terms, true))
+        .collect::<Vec<_>>();
+
+    sort_search_hits(&mut strict_hits);
+    if !strict_hits.is_empty() {
+        strict_hits.truncate(limit);
+        return strict_hits;
+    }
+
+    let mut fallback_hits = sessions
+        .iter()
+        .filter(|session| repo_matches(session, repo_key.as_deref()))
+        .filter_map(|session| score_session(session, &query_norm, &terms, false))
+        .collect::<Vec<_>>();
+
+    sort_search_hits(&mut fallback_hits);
+    fallback_hits.truncate(limit);
+    fallback_hits
+}
+
+pub fn find_session<'a>(sessions: &'a [SessionSummary], session_id: &str) -> Option<&'a SessionSummary> {
+    let needle = session_id.trim().to_lowercase();
+    sessions
+        .iter()
+        .find(|session| session.id.to_lowercase() == needle)
 }
 
 pub fn current_repo_root(explicit_repo: Option<&str>) -> Result<PathBuf> {
@@ -174,7 +223,7 @@ fn sanitize_user_text(text: &str) -> Option<String> {
         return None;
     }
 
-    Some(limit_text(&compact, 140))
+    Some(compact)
 }
 
 fn sanitize_assistant_text(text: &str) -> Option<String> {
@@ -184,14 +233,14 @@ fn sanitize_assistant_text(text: &str) -> Option<String> {
         return None;
     }
 
-    Some(limit_text(&compact, 140))
+    Some(compact)
 }
 
 fn compact_text(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn limit_text(text: &str, max_len: usize) -> String {
+pub fn limit_text(text: &str, max_len: usize) -> String {
     if text.chars().count() <= max_len {
         return text.to_owned();
     }
@@ -231,8 +280,145 @@ fn codex_home() -> Result<PathBuf> {
     Ok(PathBuf::from(user_profile).join(".codex"))
 }
 
-fn normalize_path(path: &Path) -> String {
+pub fn normalize_path(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
+fn repo_matches(session: &SessionSummary, repo_key: Option<&str>) -> bool {
+    match repo_key {
+        Some(repo_key) => {
+            normalize_path(&session.attributed_repo_root) == repo_key
+                || normalize_path(&session.repo_root) == repo_key
+        }
+        None => true,
+    }
+}
+
+fn sort_search_hits(hits: &mut [SearchHit]) {
+    hits.sort_by(|left, right| {
+        right
+            .score
+            .cmp(&left.score)
+            .then_with(|| right.matched_terms.cmp(&left.matched_terms))
+            .then_with(|| right.session.started_at.cmp(&left.session.started_at))
+    });
+}
+
+fn score_session(
+    session: &SessionSummary,
+    query_norm: &str,
+    terms: &[String],
+    require_all_terms: bool,
+) -> Option<SearchHit> {
+    let fields = session_search_fields(session);
+    let combined = fields
+        .iter()
+        .map(|(_, text)| text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let matched_terms = terms
+        .iter()
+        .filter(|term| combined.contains(term.as_str()))
+        .count();
+    let mut score = 0usize;
+    let mut why = Vec::new();
+
+    for (label, text) in &fields {
+        if text.contains(query_norm) {
+            let boost = match *label {
+                "goal" => 90,
+                "outcome" => 70,
+                "attributed_repo" => 65,
+                "workspace_repo" => 40,
+                "mentioned_repos" => 45,
+                "session_id" => 80,
+                _ => 20,
+            };
+            score += boost;
+            why.push(format!("{label} matched the full query"));
+        }
+    }
+
+    for (label, text) in &fields {
+        let term_hits = terms
+            .iter()
+            .filter(|term| text.contains(term.as_str()))
+            .count();
+        if term_hits == 0 {
+            continue;
+        }
+
+        let per_term = match *label {
+            "goal" => 12,
+            "outcome" => 9,
+            "attributed_repo" => 8,
+            "workspace_repo" => 5,
+            "mentioned_repos" => 6,
+            "session_id" => 15,
+            _ => 3,
+        };
+        score += term_hits * per_term;
+        why.push(format!("{label} matched {term_hits} term(s)"));
+    }
+
+    let phrase_match = why.iter().any(|reason| reason.contains("full query"));
+    if require_all_terms {
+        if matched_terms < terms.len() && !phrase_match {
+            return None;
+        }
+    } else if matched_terms == 0 && !phrase_match {
+        return None;
+    }
+
+    score += matched_terms * 10;
+    why.sort();
+    why.dedup();
+
+    Some(SearchHit {
+        session: session.clone(),
+        score,
+        matched_terms,
+        why,
+    })
+}
+
+fn session_search_fields(session: &SessionSummary) -> Vec<(&'static str, String)> {
+    vec![
+        ("session_id", session.id.to_lowercase()),
+        (
+            "goal",
+            session
+                .first_user_goal
+                .as_deref()
+                .unwrap_or_default()
+                .to_lowercase(),
+        ),
+        (
+            "outcome",
+            session
+                .last_assistant_outcome
+                .as_deref()
+                .unwrap_or_default()
+                .to_lowercase(),
+        ),
+        (
+            "workspace_repo",
+            normalize_path(&session.repo_root),
+        ),
+        (
+            "attributed_repo",
+            normalize_path(&session.attributed_repo_root),
+        ),
+        (
+            "mentioned_repos",
+            session
+                .mentioned_repo_roots
+                .iter()
+                .map(|path| normalize_path(path))
+                .collect::<Vec<_>>()
+                .join(" "),
+        ),
+    ]
 }
 
 fn discover_known_product_roots() -> Vec<PathBuf> {

@@ -19,3 +19,11 @@ pub struct ProjectSummary {
     pub latest_started_at: String,
     pub latest_goal: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct SearchHit {
+    pub session: SessionSummary,
+    pub score: usize,
+    pub matched_terms: usize,
+    pub why: Vec<String>,
+}

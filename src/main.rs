@@ -31,15 +31,11 @@ fn run(cli: Cli) -> Result<()> {
                 println!("attributed_repo: {}", best.attributed_repo_root.display());
                 println!(
                     "goal: {}",
-                    best.first_user_goal
-                        .as_deref()
-                        .unwrap_or("no meaningful user goal extracted")
+                    display_excerpt(best.first_user_goal.as_deref())
                 );
                 println!(
                     "last_outcome: {}",
-                    best.last_assistant_outcome
-                        .as_deref()
-                        .unwrap_or("no assistant outcome extracted")
+                    display_excerpt(best.last_assistant_outcome.as_deref())
                 );
                 println!("recent_sessions_in_repo: {}", matching.len());
                 if !best.mentioned_repo_roots.is_empty() {
@@ -57,10 +53,44 @@ fn run(cli: Cli) -> Result<()> {
                 println!("scanned_sessions: {}", sessions.len());
             }
         }
-        Command::Find { query } => {
+        Command::Find { query, repo, limit } => {
+            let sessions = scanner::scan_sessions()?;
+            let repo_root = match repo.as_deref() {
+                Some(path) => Some(scanner::current_repo_root(Some(path))?),
+                None => None,
+            };
+            let hits = scanner::search_sessions(&sessions, &query, repo_root.as_deref(), limit);
+
             println!("ccx find");
             println!("query: {query}");
-            println!("status: scaffolded");
+            if let Some(repo_root) = repo_root.as_ref() {
+                println!("repo_filter: {}", repo_root.display());
+            }
+            println!("results: {}", hits.len());
+
+            if hits.is_empty() {
+                println!("status: no matching sessions found");
+            } else {
+                for hit in hits {
+                    println!(
+                        "- score={} | terms={} | {} | {} | {}",
+                        hit.score,
+                        hit.matched_terms,
+                        hit.session.started_at,
+                        hit.session.id,
+                        hit.session.attributed_repo_root.display()
+                    );
+                    println!(
+                        "  goal: {}",
+                        display_excerpt(hit.session.first_user_goal.as_deref())
+                    );
+                    println!(
+                        "  outcome: {}",
+                        display_excerpt(hit.session.last_assistant_outcome.as_deref())
+                    );
+                    println!("  why: {}", hit.why.join(" | "));
+                }
+            }
         }
         Command::Compare {
             session_a,
@@ -91,7 +121,8 @@ fn run(cli: Cli) -> Result<()> {
                     session
                         .first_user_goal
                         .as_deref()
-                        .unwrap_or("no meaningful user goal extracted")
+                        .map(|text| scanner::limit_text(text, 140))
+                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned())
                 );
             }
         }
@@ -110,7 +141,8 @@ fn run(cli: Cli) -> Result<()> {
                     project
                         .latest_goal
                         .as_deref()
-                        .unwrap_or("no meaningful user goal extracted")
+                        .map(|text| scanner::limit_text(text, 140))
+                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned())
                 );
             }
         }
@@ -149,6 +181,12 @@ enum Command {
     Find {
         /// Text query to search for.
         query: String,
+        /// Optional repo path to limit search to one project.
+        #[arg(long)]
+        repo: Option<String>,
+        /// Maximum number of matches to return.
+        #[arg(long, default_value_t = 8)]
+        limit: usize,
     },
     /// Compare two Codex sessions.
     Compare {
@@ -173,4 +211,9 @@ enum Command {
 
 fn normalize_path(path: &std::path::Path) -> String {
     path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
+fn display_excerpt(text: Option<&str>) -> String {
+    text.map(|value| scanner::limit_text(value, 140))
+        .unwrap_or_else(|| "no meaningful text extracted".to_owned())
 }

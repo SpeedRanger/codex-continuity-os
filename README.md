@@ -8,9 +8,9 @@ The product goal is simple: open any repo and instantly understand what happened
 
 - Rust CLI app exists and builds locally
 - local Codex session archive scanning works on real data
-- `ccx sessions`, `ccx projects`, and `ccx resume` are functional
+- `ccx sessions`, `ccx projects`, `ccx resume`, and `ccx find` are functional
 - indirect repo attribution now recovers downstream repos from template-based sessions
-- `find`, `compare`, `pack`, indexing, and launch hardening are still in progress
+- `compare`, `pack`, indexing, and launch hardening are still in progress
 
 ## Key Docs
 
@@ -37,6 +37,10 @@ The product goal is simple: open any repo and instantly understand what happened
 - `ccx resume --repo <path>`
   - finds the best known session for a repo
   - now works even when the original session happened in an indirect workspace like `templates/saas-mvp-template`
+- `ccx find "<query>" [--repo <path>] [--limit <n>]`
+  - ranks matching sessions using goals, assistant outcomes, repo paths, mentioned repos, and session ids
+  - prints why each result matched
+  - supports project-scoped search
 
 ## Verified Example
 
@@ -46,7 +50,6 @@ The product goal is simple: open any repo and instantly understand what happened
 
 This is not launch-ready yet. The current build still needs:
 
-- a useful `find` command
 - session comparison
 - resume-pack generation
 - indexing and persistence
