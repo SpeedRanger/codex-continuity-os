@@ -18,6 +18,10 @@ The current build has:
 - ranked session search
 - side-by-side compare
 - resume-pack generation
+- GitHub Actions CI
+- CodeQL workflow
+- Dependabot configuration
+- security policy
 - milestone git history
 - implementation journal
 - unit tests covering the core heuristics

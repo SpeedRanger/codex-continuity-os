@@ -158,6 +158,7 @@ Near-term improvements:
 - [docs/LAUNCH_READINESS.md](./docs/LAUNCH_READINESS.md): launch-facing verification and known limits
 - [docs/CODEX_CONTINUITY_OS_MVP.md](./docs/CODEX_CONTINUITY_OS_MVP.md): original MVP spec
 - [docs/IMPLEMENTATION_JOURNAL.md](./docs/IMPLEMENTATION_JOURNAL.md): step-by-step build log
+- [SECURITY.md](./SECURITY.md): security reporting and repo security posture
 
 ## Contributing
 
