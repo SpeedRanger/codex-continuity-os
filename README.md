@@ -116,7 +116,9 @@ Core implementation files:
 - [src/scanner.rs](./src/scanner.rs): archive scanning, parsing, attribution, search, and cache logic
 - [src/model.rs](./src/model.rs): normalized session/project/search data model
 
-For a deeper internal walkthrough, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+For the fastest operator-facing explanation, see [docs/PROJECT_WALKTHROUGH.md](./docs/PROJECT_WALKTHROUGH.md).
+
+For the deeper internal architecture walkthrough, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Verification Status
 
@@ -154,6 +156,7 @@ Near-term improvements:
 
 - [PROJECT_SPEC.md](./PROJECT_SPEC.md): compact product definition
 - [CONTINUITY.md](./CONTINUITY.md): current project state
+- [docs/PROJECT_WALKTHROUGH.md](./docs/PROJECT_WALKTHROUGH.md): full product explanation and real command walkthrough
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): implementation walkthrough
 - [docs/LAUNCH_READINESS.md](./docs/LAUNCH_READINESS.md): launch-facing verification and known limits
 - [docs/CODEX_CONTINUITY_OS_MVP.md](./docs/CODEX_CONTINUITY_OS_MVP.md): original MVP spec

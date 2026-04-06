@@ -1,6 +1,6 @@
 # Codex Continuity OS Implementation Journal
 
-Last updated: 2026-04-05
+Last updated: 2026-04-06
 
 ## Purpose
 
@@ -836,6 +836,72 @@ Confirmed:
 The code was already real, but this step is what turned it into an actual launchable product repo instead of a local build workspace.
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
+
+## Step 16 - Added A Full Product Walkthrough And Re-Verified The Live Examples
+
+### Why
+
+The existing docs explained the architecture and launch state, but they still left a gap for the most important operator question:
+
+- what exactly is this product, how does it work, and how do I use it end to end?
+
+That needed one canonical document that combines:
+
+- product explanation
+- data-flow explanation
+- command-level usage
+- real example outputs
+
+### What changed
+
+Added:
+
+- `docs/PROJECT_WALKTHROUGH.md`
+
+Updated:
+
+- `README.md`
+
+### What functionality this added
+
+No new runtime capability was added to the binary itself.
+
+What changed is operator usability:
+
+- there is now a single file that explains the whole product
+- the README now points directly to that walkthrough
+- a new user can understand the system without reverse-engineering the source
+
+### Important verification note
+
+During this pass, a real environment issue surfaced again:
+
+- `target\debug\ccx.exe` can be stale or locked on this Windows machine during active iteration
+
+So the walkthrough examples were verified from a fresh isolated build target instead:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='C:\Users\AKR\.codex\tmp\ccx-target-live'
+cargo.exe build --bin ccx
+```
+
+Verified commands from that fresh build:
+
+```powershell
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe resume --repo D:\saas-workspace\products\roompilot-ai
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe compare 019d1f8d-698d-70d1-b07d-f099066d4d34 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe pack --repo D:\saas-workspace\products\roompilot-ai
+```
+
+Observed behavior:
+
+- `resume` recovered the March 27, 2026 `roompilot-ai` session from a template workspace
+- `find "prompt profiles"` returned the March 24, 2026 `roompilot-ai` session
+- `compare` correctly inferred that the March 27 session is the later continuation of the March 24 session
+- `pack` generated the expected resume block with the right latest session and context anchor
 
 ## Overnight Plan From Here
 
