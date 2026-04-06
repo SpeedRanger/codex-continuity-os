@@ -100,6 +100,12 @@ target\debug\ccx.exe compare 019d1f8d-698d-70d1-b07d-f099066d4d34 019d30b1-1b6f-
 target\debug\ccx.exe pack --repo D:\saas-workspace\products\roompilot-ai
 ```
 
+Repeatable live demo script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
+```
+
 ## How It Works
 
 At a high level:

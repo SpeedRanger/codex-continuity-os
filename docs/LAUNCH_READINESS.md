@@ -63,6 +63,12 @@ target\debug\ccx.exe compare 019d1f8d-698d-70d1-b07d-f099066d4d34 019d30b1-1b6f-
 target\debug\ccx.exe pack --repo D:\saas-workspace\products\roompilot-ai
 ```
 
+Repeatable scripted demo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
+```
+
 ## Verification Evidence
 
 Manual verification completed against the live Codex archive:
@@ -72,6 +78,19 @@ Manual verification completed against the live Codex archive:
 - `find "prompt profiles" --repo roompilot-ai` returned the expected March 24, 2026 session
 - `compare` correctly identified the March 27 session as the later continuation of the March 24 session
 - `pack --repo roompilot-ai` produced a usable resume block with the latest checkpoint and richer context anchor
+
+Scripted verification completed on 2026-04-06 with the isolated demo binary:
+
+- fresh build completed successfully
+- `index` rebuilt the cache and indexed `322` sessions
+- scripted full demo completed successfully end to end
+- observed timings on the scripted run:
+  - `index`: `57352ms`
+  - `projects`: `103ms`
+  - `resume`: `142ms`
+  - `find`: `120ms`
+  - `compare`: `144ms`
+  - `pack`: `132ms`
 
 Automated verification:
 

@@ -903,6 +903,67 @@ Observed behavior:
 - `compare` correctly inferred that the March 27 session is the later continuation of the March 24 session
 - `pack` generated the expected resume block with the right latest session and context anchor
 
+## Step 17 - Added A Repeatable Live Demo Script And Measured The Full Flow
+
+### Why
+
+One-off verification is useful for development, but launch confidence is stronger when the repo contains a repeatable demo path that anyone can run without reconstructing the command sequence manually.
+
+### What changed
+
+Added:
+
+- `scripts/live-demo.ps1`
+
+Updated:
+
+- `README.md`
+- `docs/LAUNCH_READINESS.md`
+
+### What functionality this added
+
+No new continuity logic was added to the CLI itself.
+
+What was added is operator tooling:
+
+- one command now rebuilds an isolated binary
+- refreshes the cache
+- runs the `projects`, `resume`, `find`, `compare`, and `pack` demo flow
+- prints per-step timings
+
+### Verification
+
+Ran:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
+```
+
+Observed result:
+
+- build succeeded from the isolated target
+- `index` rebuilt successfully
+- `sessions_indexed: 322`
+- full scripted demo completed successfully
+
+Observed timings:
+
+- `index`: `57352ms`
+- `projects`: `103ms`
+- `resume`: `142ms`
+- `find`: `120ms`
+- `compare`: `144ms`
+- `pack`: `132ms`
+
+### Why this matters
+
+This produces a more honest launch story:
+
+- the first cold-cache pass is materially slower
+- the hot-path commands are fast once the cache exists
+
+That is a good product shape for the current CLI launch, and now the repo contains a concrete way to demonstrate it.
+
 ## Overnight Plan From Here
 
 1. Add launch-scope documentation and keep updating this journal after each substantive implementation step.
