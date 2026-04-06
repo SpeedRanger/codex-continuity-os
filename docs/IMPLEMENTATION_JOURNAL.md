@@ -1,6 +1,6 @@
 # Codex Continuity OS Implementation Journal
 
-Last updated: 2026-04-04
+Last updated: 2026-04-05
 
 ## Purpose
 
@@ -801,6 +801,39 @@ At this point the product includes:
 - cache refresh is explicit through `ccx index`, not automatic
 - file extraction remains heuristic
 - there is no packaged installer yet
+
+## Step 15 - Published The Public GitHub Repository
+
+### Why
+
+The product was no longer just a local prototype. It needed a real public repo surface for launch.
+
+### What changed
+
+Published the repository to GitHub:
+
+- `https://github.com/SpeedRanger/codex-continuity-os`
+
+Added public-launch repo artifacts:
+
+- rewritten `README.md`
+- `LICENSE`
+- `CONTRIBUTING.md`
+- `docs/ARCHITECTURE.md`
+
+### Verification
+
+Confirmed:
+
+- GitHub auth was live under `SpeedRanger`
+- the target repo name did not already exist
+- the new public repo was created successfully
+- `origin` was added automatically
+- `main` was pushed successfully
+
+### Why this matters
+
+The code was already real, but this step is what turned it into an actual launchable product repo instead of a local build workspace.
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
 

@@ -1,6 +1,6 @@
 # Continuity
 
-Last updated: 2026-04-04
+Last updated: 2026-04-05
 
 ## Current Goal
 
@@ -23,13 +23,14 @@ Ship the current CLI product as a launch-ready local-first continuity tool for C
 - commands now use a cache under `C:/Users/AKR/.codex-continuity/cache/session_index.tsv`
 - `ccx index` explicitly rebuilds the cache and normal commands prefer cache reads
 - automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
+- public GitHub repo now exists at `https://github.com/SpeedRanger/codex-continuity-os`
 - verified recovery exists for `D:/saas-workspace/products/roompilot-ai`
 - current grouped project count is `30`
 - current scanned session count is `319`
 
 ## Last Change
 
-Added cache-backed session loading and a real unit test suite, then reran the full command surface against the cache-backed build.
+Published the repo publicly to GitHub, upgraded the repo surface for launch, and preserved the full overnight implementation log.
 
 ## Next Actions
 

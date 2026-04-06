@@ -1,10 +1,14 @@
 # Launch Readiness
 
-Last updated: 2026-04-04
+Last updated: 2026-04-05
 
 ## Current Status
 
 Codex Continuity OS is launchable as a source-first CLI product.
+
+Public repository:
+
+- `https://github.com/SpeedRanger/codex-continuity-os`
 
 The current build has:
 
@@ -19,6 +23,13 @@ The current build has:
 - unit tests covering the core heuristics
 
 ## Build
+
+Clone the repo:
+
+```powershell
+git clone https://github.com/SpeedRanger/codex-continuity-os.git
+cd codex-continuity-os
+```
 
 Use the intact Rust toolchain directly:
 

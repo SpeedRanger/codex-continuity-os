@@ -4,6 +4,10 @@ Local-first continuity layer for Codex.
 
 Codex Continuity OS helps you recover context across chats, repos, branches, and indirect workspaces without modifying Codex itself. It reads your local Codex session archive, builds a project-aware index, and gives you fast commands to resume work, search old sessions, compare two chats, and generate a resume pack for the next session.
 
+Public repo:
+
+- `https://github.com/SpeedRanger/codex-continuity-os`
+
 ## Why This Exists
 
 `codex resume` is good at reopening a session id.
@@ -56,6 +60,13 @@ Codex Continuity OS can recover that relationship from the transcript and attrib
 ## Build
 
 This repo currently ships as a source-first CLI.
+
+Clone it:
+
+```powershell
+git clone https://github.com/SpeedRanger/codex-continuity-os.git
+cd codex-continuity-os
+```
 
 On this machine, the default `cargo` shim for the active stable toolchain is broken, so use the intact toolchain directly:
 
