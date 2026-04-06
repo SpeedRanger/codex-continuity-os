@@ -162,6 +162,7 @@ Near-term improvements:
 
 - [PROJECT_SPEC.md](./PROJECT_SPEC.md): compact product definition
 - [CONTINUITY.md](./CONTINUITY.md): current project state
+- [docs/LIVE_DEMO_VISUAL.html](./docs/LIVE_DEMO_VISUAL.html): visual operator walkthrough of the live demo flow
 - [docs/PROJECT_WALKTHROUGH.md](./docs/PROJECT_WALKTHROUGH.md): full product explanation and real command walkthrough
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): implementation walkthrough
 - [docs/LAUNCH_READINESS.md](./docs/LAUNCH_READINESS.md): launch-facing verification and known limits
