@@ -1,6 +1,6 @@
 # Project Walkthrough
 
-Last updated: 2026-04-06
+Last updated: 2026-04-09
 
 ## Purpose
 
@@ -114,6 +114,7 @@ That keeps the system small and predictable.
 
 The CLI then serves operator commands over that normalized session list:
 
+- `dashboard`
 - `sessions`
 - `projects`
 - `resume`
@@ -145,6 +146,28 @@ That is enough structure to support:
 - resume-pack generation
 
 ## What Each Command Does
+
+### `ccx dashboard [--repo <path>]`
+
+Opens the interactive continuity board.
+
+This is now the preferred front door for the product.
+
+It gives you:
+
+- project list
+- session list for the selected project
+- rich detail pane for the selected session
+- live search inside the selected project's sessions
+- a next-step hint panel
+
+Keyboard flow:
+
+- `Tab` switches between projects and sessions
+- `/` opens search mode
+- `Esc` clears search
+- `i` rebuilds the cache/index
+- `q` quits
 
 ### `ccx sessions`
 
@@ -203,11 +226,11 @@ Use this after new sessions accumulate or when you want a clean refresh from the
 
 When you come back to a repo after a break, the best order is:
 
-1. `ccx index`
-2. `ccx resume --repo <path>`
-3. `ccx find "<topic>" --repo <path>` if you need a specific discussion
-4. `ccx compare <a> <b>` if two chats look similar
-5. `ccx pack --repo <path>` before starting the next session
+1. `ccx dashboard --repo <path>`
+2. use the dashboard to inspect the latest session and related sessions
+3. use `/` search inside that repo if you need a specific discussion
+4. use `ccx compare <a> <b>` if two chats still look similar
+5. use `ccx pack --repo <path>` before starting the next session
 
 That workflow goes from broad recovery to precise recovery to handoff.
 

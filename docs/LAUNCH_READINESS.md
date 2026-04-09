@@ -1,10 +1,10 @@
 # Launch Readiness
 
-Last updated: 2026-04-05
+Last updated: 2026-04-09
 
 ## Current Status
 
-Codex Continuity OS is launchable as a source-first CLI product.
+Codex Continuity OS is now launchable as a source-first CLI/TUI product.
 
 Public repository:
 
@@ -13,6 +13,7 @@ Public repository:
 The current build has:
 
 - cache-backed local session indexing
+- interactive continuity dashboard
 - project grouping
 - repo resume
 - ranked session search
@@ -53,9 +54,16 @@ This creates the local cache at:
 
 - `C:\Users\AKR\.codex-continuity\cache\session_index.tsv`
 
+Preferred interactive entrypoint:
+
+```powershell
+target\debug\ccx.exe dashboard
+```
+
 ## Demo Commands
 
 ```powershell
+target\debug\ccx.exe dashboard --repo D:\saas-workspace\products\roompilot-ai
 target\debug\ccx.exe projects
 target\debug\ccx.exe resume --repo D:\saas-workspace\products\roompilot-ai
 target\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
@@ -73,6 +81,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
 
 Manual verification completed against the live Codex archive:
 
+- `dashboard --repo roompilot-ai` opened a real continuity board with the repo preselected
+- dashboard search mode filtered the session pane to the `prompt profiles` result
 - `projects` returned `30` grouped roots
 - `resume --repo roompilot-ai` recovered the correct March 27, 2026 session from a template workspace
 - `find "prompt profiles" --repo roompilot-ai` returned the expected March 24, 2026 session
@@ -101,6 +111,7 @@ Automated verification:
 
 - cache refresh is manual through `ccx index`
 - file extraction is heuristic, not AST- or git-diff-backed
+- the dashboard currently optimizes for keyboard-driven operators, not first-time casual users
 - there is no installer/package yet; current launch shape is repo + build instructions
 
 ## Recommended Launch Framing
@@ -109,7 +120,7 @@ Position it as:
 
 - local-first continuity layer for Codex
 - fast recovery for multi-chat, multi-repo work
-- search, compare, and resume packs for historical agent sessions
+- a continuity board plus search, compare, and resume packs for historical agent sessions
 
 Do not position it yet as:
 

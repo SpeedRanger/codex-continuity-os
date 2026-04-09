@@ -2,7 +2,7 @@
 
 Local-first continuity layer for Codex.
 
-Codex Continuity OS helps you recover context across chats, repos, branches, and indirect workspaces without modifying Codex itself. It reads your local Codex session archive, builds a project-aware index, and gives you fast commands to resume work, search old sessions, compare two chats, and generate a resume pack for the next session.
+Codex Continuity OS helps you recover context across chats, repos, branches, and indirect workspaces without modifying Codex itself. It reads your local Codex session archive, builds a project-aware index, and now gives you both a continuity dashboard and fast commands to resume work, search old sessions, compare two chats, and generate a resume pack for the next session.
 
 Public repo:
 
@@ -34,6 +34,8 @@ This project exists to solve that gap.
 
 ## Command Surface
 
+- `ccx dashboard [--repo <path>]`
+  - open the interactive continuity board with projects, sessions, detail, and live search
 - `ccx sessions`
   - list recent known sessions with attributed repo and first user goal
 - `ccx projects`
@@ -90,9 +92,16 @@ This creates:
 
 Normal commands then prefer that cache for speed.
 
+Preferred entrypoint:
+
+```powershell
+target\debug\ccx.exe dashboard
+```
+
 ## Quick Demo
 
 ```powershell
+target\debug\ccx.exe dashboard --repo D:\saas-workspace\products\roompilot-ai
 target\debug\ccx.exe projects
 target\debug\ccx.exe resume --repo D:\saas-workspace\products\roompilot-ai
 target\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
@@ -114,13 +123,14 @@ At a high level:
 2. extract normalized session summaries
 3. infer the real project repo from workspace + transcript mentions
 4. cache the normalized index
-5. expose repo-aware commands over that index
+5. expose a repo-aware dashboard plus commands over that index
 
 Core implementation files:
 
 - [src/main.rs](./src/main.rs): CLI command dispatch and output shaping
 - [src/scanner.rs](./src/scanner.rs): archive scanning, parsing, attribution, search, and cache logic
 - [src/model.rs](./src/model.rs): normalized session/project/search data model
+- [src/tui.rs](./src/tui.rs): interactive continuity board UI
 
 For the fastest operator-facing explanation, see [docs/PROJECT_WALKTHROUGH.md](./docs/PROJECT_WALKTHROUGH.md).
 
@@ -130,6 +140,7 @@ For the deeper internal architecture walkthrough, see [docs/ARCHITECTURE.md](./d
 
 Verified against the real local Codex archive:
 
+- `dashboard --repo roompilot-ai` opened the continuity board with the correct repo preselected
 - `projects` returned grouped project roots
 - `resume --repo roompilot-ai` recovered a template-based `roompilot-ai` session correctly
 - `find "prompt profiles" --repo roompilot-ai` recovered the expected historical session
@@ -157,6 +168,7 @@ Near-term improvements:
 - stronger resume ranking
 - packaged binaries / installer
 - richer TUI layer on top of the same core index
+- small local web companion if the terminal board proves the workflow
 
 ## Docs
 

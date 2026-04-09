@@ -1,7 +1,6 @@
 use std::{
     collections::BTreeSet,
-    env,
-    fs,
+    env, fs,
     fs::File,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -130,7 +129,10 @@ pub fn search_sessions(
     fallback_hits
 }
 
-pub fn find_session<'a>(sessions: &'a [SessionSummary], session_id: &str) -> Option<&'a SessionSummary> {
+pub fn find_session<'a>(
+    sessions: &'a [SessionSummary],
+    session_id: &str,
+) -> Option<&'a SessionSummary> {
     let needle = session_id.trim().to_lowercase();
     sessions
         .iter()
@@ -146,7 +148,10 @@ pub fn current_repo_root(explicit_repo: Option<&str>) -> Result<PathBuf> {
     Ok(find_repo_root(&start).unwrap_or(start))
 }
 
-fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Option<SessionSummary>> {
+fn parse_session_file(
+    path: &Path,
+    known_product_roots: &[PathBuf],
+) -> Result<Option<SessionSummary>> {
     let file = File::open(path)
         .with_context(|| format!("failed to open session file {}", path.display()))?;
     let reader = BufReader::new(file);
@@ -188,7 +193,8 @@ fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Op
         {
             collect_mentioned_repo_roots(&line, known_product_roots, &mut mentioned_repo_roots);
             collect_mentioned_files(&line, &mut mentioned_files);
-            let text = extract_json_string(&line, "\"text\":\"").map(|text| unescape_json_string(&text));
+            let text =
+                extract_json_string(&line, "\"text\":\"").map(|text| unescape_json_string(&text));
 
             if line.contains("\"role\":\"user\"") {
                 if first_user_goal.is_none() {
@@ -226,8 +232,7 @@ fn parse_session_file(path: &Path, known_product_roots: &[PathBuf]) -> Result<Op
         .map(PathBuf::from)
         .collect::<Vec<_>>();
     let mentioned_files = mentioned_files.into_iter().collect::<Vec<_>>();
-    let attributed_repo_root =
-        choose_attributed_repo_root(&repo_root, &cwd, &mentioned_repo_roots);
+    let attributed_repo_root = choose_attributed_repo_root(&repo_root, &cwd, &mentioned_repo_roots);
 
     Ok(Some(SessionSummary {
         id: session_id,
@@ -361,7 +366,9 @@ fn session_fingerprint() -> Result<SessionFingerprint> {
     })
 }
 
-fn read_cached_sessions(fingerprint: Option<&SessionFingerprint>) -> Result<Option<Vec<SessionSummary>>> {
+fn read_cached_sessions(
+    fingerprint: Option<&SessionFingerprint>,
+) -> Result<Option<Vec<SessionSummary>>> {
     let cache_file = cache_file_path()?;
     if !cache_file.exists() {
         return Ok(None);
@@ -396,7 +403,10 @@ fn read_cached_sessions(fingerprint: Option<&SessionFingerprint>) -> Result<Opti
     Ok(Some(sessions))
 }
 
-fn write_cached_sessions(fingerprint: &SessionFingerprint, sessions: &[SessionSummary]) -> Result<()> {
+fn write_cached_sessions(
+    fingerprint: &SessionFingerprint,
+    sessions: &[SessionSummary],
+) -> Result<()> {
     let cache_file = cache_file_path()?;
     if let Some(parent) = cache_file.parent() {
         fs::create_dir_all(parent)
@@ -438,7 +448,8 @@ fn cache_header_matches(header: &str, fingerprint: Option<&SessionFingerprint>) 
     match fingerprint {
         Some(fingerprint) => {
             file_count.parse::<usize>().ok() == Some(fingerprint.file_count)
-                && latest_modified_epoch.parse::<u64>().ok() == Some(fingerprint.latest_modified_epoch)
+                && latest_modified_epoch.parse::<u64>().ok()
+                    == Some(fingerprint.latest_modified_epoch)
         }
         None => true,
     }
@@ -461,7 +472,12 @@ fn serialize_cached_session_line(session: &SessionSummary) -> String {
         ),
         sanitize_cache_field(&session.mentioned_files.join("||")),
         sanitize_cache_field(session.first_user_goal.as_deref().unwrap_or_default()),
-        sanitize_cache_field(session.last_assistant_outcome.as_deref().unwrap_or_default()),
+        sanitize_cache_field(
+            session
+                .last_assistant_outcome
+                .as_deref()
+                .unwrap_or_default(),
+        ),
     ]
     .join("\t")
 }
@@ -492,7 +508,10 @@ fn parse_cached_session_line(line: &str) -> Option<SessionSummary> {
 }
 
 fn sanitize_cache_field(value: &str) -> String {
-    value.replace('\t', "    ").replace('\n', " ").replace('\r', " ")
+    value
+        .replace('\t', "    ")
+        .replace('\n', " ")
+        .replace('\r', " ")
 }
 
 fn split_cached_list(value: &str) -> Vec<String> {
@@ -529,12 +548,7 @@ struct SessionFingerprint {
 mod tests {
     use super::*;
 
-    fn sample_session(
-        id: &str,
-        repo: &str,
-        goal: &str,
-        outcome: &str,
-    ) -> SessionSummary {
+    fn sample_session(id: &str, repo: &str, goal: &str, outcome: &str) -> SessionSummary {
         SessionSummary {
             id: id.to_owned(),
             started_at: "2026-04-04T00:00:00.000Z".to_owned(),
@@ -638,7 +652,10 @@ mod tests {
         assert_eq!(parsed.started_at, original.started_at);
         assert_eq!(parsed.mentioned_files, original.mentioned_files);
         assert_eq!(parsed.first_user_goal, original.first_user_goal);
-        assert_eq!(parsed.last_assistant_outcome, original.last_assistant_outcome);
+        assert_eq!(
+            parsed.last_assistant_outcome,
+            original.last_assistant_outcome
+        );
     }
 }
 
@@ -759,10 +776,7 @@ fn session_search_fields(session: &SessionSummary) -> Vec<(&'static str, String)
                 .unwrap_or_default()
                 .to_lowercase(),
         ),
-        (
-            "workspace_repo",
-            normalize_path(&session.repo_root),
-        ),
+        ("workspace_repo", normalize_path(&session.repo_root)),
         (
             "attributed_repo",
             normalize_path(&session.attributed_repo_root),
@@ -814,7 +828,9 @@ fn collect_mentioned_repo_roots(
             .map(|name| name.to_string_lossy().to_lowercase())
             .unwrap_or_default();
 
-        if normalized_line.contains(&root_lower) || (!repo_name.is_empty() && normalized_line.contains(&repo_name)) {
+        if normalized_line.contains(&root_lower)
+            || (!repo_name.is_empty() && normalized_line.contains(&repo_name))
+        {
             mentions.insert(root_string);
         }
     }
@@ -838,7 +854,9 @@ fn collect_mentioned_files(line: &str, mentions: &mut BTreeSet<String>) {
 
 fn maybe_record_file_candidate(candidate: &str, mentions: &mut BTreeSet<String>) {
     let cleaned = candidate
-        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && !matches!(ch, ':' | '/' | '\\' | '.' | '_' | '-'))
+        .trim_matches(|ch: char| {
+            !ch.is_ascii_alphanumeric() && !matches!(ch, ':' | '/' | '\\' | '.' | '_' | '-')
+        })
         .trim_end_matches('.')
         .replace("\\\\", "\\");
 

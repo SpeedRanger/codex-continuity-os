@@ -1,6 +1,6 @@
 # Codex Continuity OS Implementation Journal
 
-Last updated: 2026-04-06
+Last updated: 2026-04-09
 
 ## Purpose
 
@@ -963,6 +963,66 @@ This produces a more honest launch story:
 - the hot-path commands are fast once the cache exists
 
 That is a good product shape for the current CLI launch, and now the repo contains a concrete way to demonstrate it.
+
+## Step 18 - Added The First Real Interface Layer
+
+### Why
+
+The product logic was stronger than the product feel.
+
+The old command surface worked, but it still felt like a collection of utilities rather than one coherent tool. That is a UX problem, not a parsing problem.
+
+### What changed
+
+Added:
+
+- `src/tui.rs`
+
+Updated:
+
+- `Cargo.toml`
+- `src/main.rs`
+- `README.md`
+- `docs/LAUNCH_READINESS.md`
+- `docs/PROJECT_WALKTHROUGH.md`
+
+### What functionality this added
+
+The product now has a first-class interactive entrypoint:
+
+- `ccx dashboard [--repo <path>]`
+
+The dashboard provides:
+
+- project list
+- session list for the selected project
+- rich detail pane
+- live search mode inside the selected project
+- keyboard-driven reindexing
+
+### Verification
+
+Built successfully from an isolated target with the new `ratatui` and `crossterm` dependencies.
+
+Verified on the real archive:
+
+- dashboard launched successfully
+- `roompilot-ai` preselection worked
+- initial render showed the correct project and latest session
+- search overlay opened and filtered the session pane
+- terminal restored cleanly after exit
+
+### Why this matters
+
+This is the first step where the product stops depending entirely on documentation to explain itself.
+
+It is still a terminal product, but it now has:
+
+- a front door
+- a visual hierarchy
+- a coherent interaction model
+
+That moves it materially closer to feeling like a product rather than a smart internal script.
 
 ## Overnight Plan From Here
 
