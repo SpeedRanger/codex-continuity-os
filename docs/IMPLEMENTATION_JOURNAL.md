@@ -1161,6 +1161,78 @@ But it is now much closer to the actual job of the product:
 
 That makes the dashboard and resume surfaces feel more like a continuity product and less like a thin wrapper over transcript fragments.
 
+## Step 21 - Made The Dashboard Explain Why A Session Was Selected
+
+### Why
+
+Even after the summary upgrade, the dashboard still made the user do interpretation work.
+
+It showed:
+
+- a selected session
+- a stronger summary
+- a better next-step hint
+
+But it still did not answer a basic trust question clearly enough:
+
+- why am I looking at this session?
+
+That is the kind of gap that makes a product feel clever-but-naive instead of confident.
+
+### What changed
+
+Changed the dashboard session list from a plain `Vec<SessionSummary>` to a richer visible-session model that carries both:
+
+- the session
+- an explicit selection reason
+
+For project views, the dashboard now generates reasons like:
+
+- most recent session in this project
+- richest continuity summary in this project
+- has extracted next-step guidance
+
+For search views, it now carries through the search-match explanation so the operator can see why a filtered result surfaced.
+
+Updated:
+
+- `src/tui.rs`
+
+### What functionality this added
+
+The dashboard snapshot panel can now explain the selected row directly instead of relying on the user to infer it from timestamps and summaries.
+
+That means the product now communicates:
+
+- what happened
+- what was verified
+- what to do next
+- why this session is the one you should care about
+
+### Verification
+
+Automated:
+
+- `cargo test`
+- `12 passed`, `0 failed`
+
+New test added for:
+
+- project-session reason generation
+
+Live verification:
+
+- `ccx dashboard --repo D:\saas-workspace\products\roompilot-ai` launched successfully after the change
+- the dashboard still rendered the real `roompilot-ai` continuity board
+- the new selection-reason line was present in the snapshot panel state
+- terminal restore still worked cleanly on exit
+
+### Why this matters
+
+This is a product-trust improvement, not just a code tidy-up.
+
+Good continuity tools do not only surface context. They also explain why the surfaced context is the right context.
+
 ## Overnight Plan From Here
 
 1. Add launch-scope documentation and keep updating this journal after each substantive implementation step.

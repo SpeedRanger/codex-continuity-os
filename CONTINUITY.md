@@ -25,6 +25,7 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 - `ccx index` explicitly rebuilds the cache and normal commands prefer cache reads
 - `ccx dashboard` now acts as the interactive front door for the product
 - dashboard detail now exposes summary plus verification and an extracted next-step panel
+- dashboard session selection now includes explicit why-this-session reasoning
 - automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
 - public GitHub repo now exists at `https://github.com/SpeedRanger/codex-continuity-os`
 - canonical product docs now exist for PRD, task tracking, and user flows
@@ -34,12 +35,12 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 
 ## Last Change
 
-Replaced the naive first-message / last-message summary layer with a deterministic session digest, then wired that richer continuity model through the CLI, cache, tests, and dashboard detail pane.
+Added explicit why-this-session reasoning to the dashboard so the selected session is explained, not just displayed.
 
 ## Next Actions
 
 1. Tighten the dashboard UX so the front door feels more polished and more obvious.
-2. Show explicit why-this-session-won reasoning in the dashboard detail pane.
+2. Add a proper first-run onboarding and empty-state layer for the dashboard.
 3. Decide whether the next interface leap is a richer TUI pass or a local web UI.
 
 ## Blockers / Decisions

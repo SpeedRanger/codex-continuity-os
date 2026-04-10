@@ -144,6 +144,7 @@ Verified against the real local Codex archive:
 
 - `dashboard --repo roompilot-ai` opened the continuity board with the correct repo preselected
 - the dashboard now shows extracted summary, verification, and next-step guidance for the selected session
+- the dashboard now explains why the selected session is important instead of leaving that inference to the user
 - `projects` returned grouped project roots
 - `resume --repo roompilot-ai` recovered a template-based `roompilot-ai` session correctly
 - `find "prompt profiles" --repo roompilot-ai` recovered the expected historical session
@@ -152,7 +153,7 @@ Verified against the real local Codex archive:
 
 Automated checks currently included:
 
-- `11` unit tests passed
+- `12` unit tests passed
 - `0` failures
 
 ## Current Limits

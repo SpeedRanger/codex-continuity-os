@@ -105,7 +105,7 @@ enum InputMode {
 struct DashboardApp {
     projects: Vec<ProjectSummary>,
     sessions: Vec<SessionSummary>,
-    visible_sessions: Vec<SessionSummary>,
+    visible_sessions: Vec<VisibleSession>,
     project_state: ListState,
     session_state: ListState,
     focus: FocusPane,
@@ -113,6 +113,12 @@ struct DashboardApp {
     source: SessionSource,
     search_query: String,
     status: String,
+}
+
+#[derive(Debug, Clone)]
+struct VisibleSession {
+    session: SessionSummary,
+    reason: String,
 }
 
 impl DashboardApp {
@@ -288,17 +294,25 @@ impl DashboardApp {
                 24,
             )
             .into_iter()
-            .map(|hit| hit.session)
+            .map(|hit| VisibleSession {
+                session: hit.session,
+                reason: if hit.why.is_empty() {
+                    "Matched the active search filter.".to_owned()
+                } else {
+                    format!("Search match: {}", hit.why.join(" | "))
+                },
+            })
             .collect(),
-            Some(repo_root) => self
-                .sessions
-                .iter()
-                .filter(|session| {
-                    normalize_path(&session.attributed_repo_root) == normalize_path(repo_root)
-                })
-                .take(24)
-                .cloned()
-                .collect(),
+            Some(repo_root) => build_project_visible_sessions(
+                self.sessions
+                    .iter()
+                    .filter(|session| {
+                        normalize_path(&session.attributed_repo_root) == normalize_path(repo_root)
+                    })
+                    .take(24)
+                    .cloned()
+                    .collect(),
+            ),
             None => Vec::new(),
         };
 
@@ -339,9 +353,18 @@ impl DashboardApp {
     }
 
     fn selected_session(&self) -> Option<&SessionSummary> {
+        self.selected_visible_session().map(|row| &row.session)
+    }
+
+    fn selected_visible_session(&self) -> Option<&VisibleSession> {
         self.session_state
             .selected()
             .and_then(|index| self.visible_sessions.get(index))
+    }
+
+    fn selected_session_reason(&self) -> Option<&str> {
+        self.selected_visible_session()
+            .map(|row| row.reason.as_str())
     }
 
     fn render(&mut self, frame: &mut ratatui::Frame<'_>) {
@@ -583,20 +606,24 @@ impl DashboardApp {
                 .iter()
                 .map(|session| {
                     let goal = session
+                        .session
                         .summary
                         .as_deref()
-                        .or(session.first_user_goal.as_deref())
+                        .or(session.session.first_user_goal.as_deref())
                         .as_deref()
                         .map(|text| scanner::limit_text(text, 72))
                         .unwrap_or_else(|| "no meaningful session summary extracted".to_owned());
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
-                                &session.id,
+                                &session.session.id,
                                 Style::default().fg(INK).add_modifier(Modifier::BOLD),
                             ),
                             Span::styled(
-                                format!("  {}", scanner::limit_text(&session.started_at, 20)),
+                                format!(
+                                    "  {}",
+                                    scanner::limit_text(&session.session.started_at, 20)
+                                ),
                                 Style::default().fg(SKY),
                             ),
                         ]),
@@ -643,7 +670,7 @@ impl DashboardApp {
         let sections = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(5),
+                Constraint::Length(6),
                 Constraint::Length(6),
                 Constraint::Min(9),
                 Constraint::Length(7),
@@ -699,6 +726,17 @@ impl DashboardApp {
             Line::from(vec![
                 Span::styled("Started at: ", Style::default().fg(BRASS)),
                 Span::styled(started_at, Style::default().fg(MUTED)),
+            ]),
+            Line::from(vec![
+                Span::styled("Why selected: ", Style::default().fg(BRASS)),
+                Span::styled(
+                    excerpt_or_default(
+                        self.selected_session_reason(),
+                        96,
+                        "No explicit selection reason available.",
+                    ),
+                    Style::default().fg(MUTED),
+                ),
             ]),
         ])
     }
@@ -928,6 +966,38 @@ fn move_index(current: Option<usize>, len: usize, delta: isize) -> Option<usize>
     Some(next)
 }
 
+fn build_project_visible_sessions(sessions: Vec<SessionSummary>) -> Vec<VisibleSession> {
+    let anchor_id = sessions
+        .iter()
+        .max_by_key(|session| session_context_score(session))
+        .map(|session| session.id.clone());
+
+    sessions
+        .into_iter()
+        .enumerate()
+        .map(|(index, session)| {
+            let mut parts = Vec::new();
+            if index == 0 {
+                parts.push("Most recent session in this project.".to_owned());
+            }
+            if anchor_id.as_deref() == Some(session.id.as_str()) {
+                parts.push("Richest continuity summary in this project.".to_owned());
+            }
+            if session.next_step.is_some() {
+                parts.push("Has extracted next-step guidance.".to_owned());
+            }
+            if parts.is_empty() {
+                parts.push("Project-attributed session in the active repo cluster.".to_owned());
+            }
+
+            VisibleSession {
+                session,
+                reason: parts.join(" "),
+            }
+        })
+        .collect()
+}
+
 fn session_context_score(session: &SessionSummary) -> usize {
     session
         .summary
@@ -1090,4 +1160,53 @@ fn file_priority(value: &str) -> (usize, String) {
         };
 
     (bucket, lower)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn sample_session(id: &str, summary: Option<&str>, next_step: Option<&str>) -> SessionSummary {
+        SessionSummary {
+            id: id.to_owned(),
+            started_at: "2026-04-10T00:00:00.000Z".to_owned(),
+            cwd: PathBuf::from(r"D:\saas-workspace\products\codex-continuity-os"),
+            repo_root: PathBuf::from(r"D:\saas-workspace\products\codex-continuity-os"),
+            attributed_repo_root: PathBuf::from(r"D:\saas-workspace\products\codex-continuity-os"),
+            mentioned_repo_roots: vec![PathBuf::from(
+                r"D:\saas-workspace\products\codex-continuity-os",
+            )],
+            mentioned_files: vec!["src/main.rs".to_owned()],
+            first_user_goal: Some("Goal".to_owned()),
+            last_assistant_outcome: Some("Outcome".to_owned()),
+            summary: summary.map(str::to_owned),
+            verification_notes: Some("Verified via smoke test.".to_owned()),
+            next_step: next_step.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn build_project_visible_sessions_marks_latest_and_anchor() {
+        let rows = build_project_visible_sessions(vec![
+            sample_session("latest", Some("Short summary"), Some("Ship it.")),
+            sample_session(
+                "anchor",
+                Some("Longer continuity summary with enough detail to win the anchor slot."),
+                Some("Keep going."),
+            ),
+        ]);
+
+        assert!(
+            rows[0]
+                .reason
+                .contains("Most recent session in this project.")
+        );
+        assert!(rows[0].reason.contains("Has extracted next-step guidance."));
+        assert!(
+            rows[1]
+                .reason
+                .contains("Richest continuity summary in this project.")
+        );
+    }
 }

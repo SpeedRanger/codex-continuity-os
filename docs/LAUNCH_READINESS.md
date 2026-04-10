@@ -84,6 +84,7 @@ Manual verification completed against the live Codex archive:
 
 - `dashboard --repo roompilot-ai` opened a real continuity board with the repo preselected
 - dashboard detail pane showed extracted summary, verification notes, and next-step hint for `roompilot-ai`
+- dashboard snapshot now includes explicit why-this-session reasoning for the selected row
 - dashboard search mode filtered the session pane to the `prompt profiles` result
 - `projects` returned `28` grouped roots
 - `resume --repo roompilot-ai` recovered the correct March 27, 2026 session from a template workspace
@@ -107,7 +108,7 @@ Scripted verification completed on 2026-04-06 with the isolated demo binary:
 
 Automated verification:
 
-- `11` unit tests passed
+- `12` unit tests passed
 - `0` unit test failures
 
 ## Known Limits
