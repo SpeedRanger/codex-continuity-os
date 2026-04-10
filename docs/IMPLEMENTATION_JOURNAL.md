@@ -1074,6 +1074,93 @@ These docs address the execution weakness:
 
 That makes the repo more like a real product workspace and less like a build artifact dump.
 
+## Step 20 - Replaced The Naive Summary Layer With A Deterministic Session Digest
+
+### Why
+
+At this point the biggest product weakness was no longer raw parsing or missing commands. It was that the continuity surface still depended too much on:
+
+- the first user message
+- the last assistant message
+
+That worked sometimes, but it broke whenever the real recap lived in the middle of the session, the last reply was procedural, or the most important signal was verification or next-step guidance rather than a raw outcome sentence.
+
+The product needed a stronger continuity layer without introducing a remote model dependency.
+
+### What changed
+
+Expanded the normalized session model to include:
+
+- `summary`
+- `verification_notes`
+- `next_step`
+
+Built a deterministic digest pass in the scanner that now:
+
+- collects sanitized user and assistant messages across the parsed session
+- prefers recap-style assistant messages as the primary session summary
+- extracts verification-like clauses into `verification_notes`
+- extracts forward-looking clauses into `next_step`
+
+Updated:
+
+- `src/model.rs`
+- `src/scanner.rs`
+- `src/main.rs`
+- `src/tui.rs`
+
+The cache format was also versioned forward from `CCX1` to `CCX2` so the new fields survive index rebuilds and hot-path reads.
+
+### What functionality this added
+
+This changed the product in operator-visible ways:
+
+- `resume` now shows:
+  - goal
+  - continuity summary
+  - verification notes
+  - next-step hint
+- `find` now surfaces the extracted summary instead of only goal/outcome fragments
+- `compare` now shows summary and verification context for both sessions
+- `pack` now emits a richer resume block with summary, verification notes, and next-step guidance
+- the dashboard detail pane now shows:
+  - summary plus verification
+  - extracted next step
+
+### Verification
+
+Automated:
+
+- `cargo test`
+- `11 passed`, `0 failed`
+
+New tests added for:
+
+- recap-style summary selection
+- verification and next-step extraction
+
+Live archive verification against `roompilot-ai`:
+
+- `ccx index` rebuilt the `CCX2` cache successfully and indexed `325` sessions
+- `ccx resume --repo D:\saas-workspace\products\roompilot-ai` recovered the correct March 27, 2026 session and showed the new summary / verification / next-step fields
+- `ccx find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai` still found the March 24, 2026 session and now exposed the stronger summary field
+- `ccx pack --repo D:\saas-workspace\products\roompilot-ai` emitted the richer continuity block with verification notes and next-step guidance
+- `ccx dashboard --repo D:\saas-workspace\products\roompilot-ai` rendered the new summary-and-verification panel and exited cleanly
+
+### Why this matters
+
+This is the first step where the product stops pretending that "first message + last message" is enough continuity.
+
+It is still not full semantic summarization. It is still heuristic.
+
+But it is now much closer to the actual job of the product:
+
+- tell me what happened
+- tell me what was verified
+- tell me what to do next
+
+That makes the dashboard and resume surfaces feel more like a continuity product and less like a thin wrapper over transcript fragments.
+
 ## Overnight Plan From Here
 
 1. Add launch-scope documentation and keep updating this journal after each substantive implementation step.

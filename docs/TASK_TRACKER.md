@@ -13,13 +13,9 @@ Status key:
 
 ## Now
 
-- `[now]` Improve session summarization beyond first-user / last-assistant heuristics
-  - Why: this is the biggest current product weakness
-  - Success: summary fields capture objective, key decisions, relevant files, verification, and next step from the full conversation
-
-- `[now]` Refine the dashboard UX from “usable” to “obvious”
+- `[now]` Refine the dashboard UX from usable to obvious
   - Why: the new TUI is the front door, so it must carry more of the product story by itself
-  - Success: better hierarchy, clearer selection states, stronger empty states, more legible context pane
+  - Success: better hierarchy, clearer selection states, stronger empty states, more legible context pane, and explicit selection reasoning
 
 - `[now]` Maintain a proper product operating system in-repo
   - Why: planning is currently under-documented relative to the product ambition
@@ -27,8 +23,7 @@ Status key:
 
 ## Next
 
-- `[next]` Add a session summary model richer than `first_user_goal` and `last_assistant_outcome`
-- `[next]` Show explicit “why this session was selected” reasoning in the dashboard detail pane
+- `[next]` Show explicit why-this-session-won reasoning in the dashboard detail pane
 - `[next]` Add a proper first-run onboarding view for `dashboard`
 - `[next]` Add installation/distribution docs for a cleaner launch story
 - `[next]` Decide whether the next interface leap is richer TUI or local web UI
@@ -53,13 +48,15 @@ Status key:
 - `[done]` Public GitHub repo created and secured
 - `[done]` Visual live demo walkthrough added
 - `[done]` First continuity dashboard TUI added and verified on real archive data
+- `[done]` Deterministic session digest added with summary, verification notes, and next-step extraction
+- `[done]` Dashboard detail pane upgraded to expose continuity summary, verification, and extracted next step
 
 ## Current Recommendation
 
 The best next product move is:
 
-1. strengthen summarization
-2. tighten dashboard polish around that stronger summary layer
+1. tighten dashboard polish around the stronger summary layer
+2. show explicit session-selection reasoning in the interface
 3. only then decide whether to leap to a local web UI
 
-That order matters because better interface polish on weak summaries still produces a shallow product.
+That order matters because the summary layer is now materially stronger, so the leverage has shifted to how clearly the interface explains and trusts those summaries.

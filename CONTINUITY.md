@@ -20,24 +20,26 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 - `ccx find` now returns ranked matches with repo filtering and match reasons
 - `ccx compare` now provides side-by-side continuity views with relation inference and repo-focused file overlap
 - `ccx pack` now generates a pasteable resume pack with a latest checkpoint, context anchor, related sessions, and prioritized files
+- sessions now carry a deterministic continuity digest with summary, verification notes, and next-step hints
 - commands now use a cache under `C:/Users/AKR/.codex-continuity/cache/session_index.tsv`
 - `ccx index` explicitly rebuilds the cache and normal commands prefer cache reads
 - `ccx dashboard` now acts as the interactive front door for the product
+- dashboard detail now exposes summary plus verification and an extracted next-step panel
 - automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
 - public GitHub repo now exists at `https://github.com/SpeedRanger/codex-continuity-os`
 - canonical product docs now exist for PRD, task tracking, and user flows
 - verified recovery exists for `D:/saas-workspace/products/roompilot-ai`
-- current grouped project count is `30`
-- current scanned session count is `319`
+- current grouped project count is `28`
+- current scanned session count is `325`
 
 ## Last Change
 
-Added the first continuity dashboard TUI and then added the missing product-operating-system docs: PRD, canonical task tracker, and user flow documentation.
+Replaced the naive first-message / last-message summary layer with a deterministic session digest, then wired that richer continuity model through the CLI, cache, tests, and dashboard detail pane.
 
 ## Next Actions
 
-1. Improve session summarization beyond first-user / last-assistant heuristics.
-2. Tighten the dashboard UX so the front door feels more polished and more obvious.
+1. Tighten the dashboard UX so the front door feels more polished and more obvious.
+2. Show explicit why-this-session-won reasoning in the dashboard detail pane.
 3. Decide whether the next interface leap is a richer TUI pass or a local web UI.
 
 ## Blockers / Decisions
@@ -49,6 +51,7 @@ Added the first continuity dashboard TUI and then added the missing product-oper
 - Repo attribution is now stronger than pure `cwd` matching, but still heuristic. It relies on known product roots and transcript mentions, not a formal project identity graph yet.
 - Cache freshness is explicit, not magical. `ccx index` is the refresh control.
 - Product docs are now materially better organized, but they still need to stay synchronized with implementation as the dashboard and summary model evolve.
+- The new summary layer is better than first-user / last-assistant extraction, but it is still deterministic heuristic extraction rather than true semantic summarization.
 
 ## Canonical Workspace
 

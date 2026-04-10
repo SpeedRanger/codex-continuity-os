@@ -1,6 +1,6 @@
 # Launch Readiness
 
-Last updated: 2026-04-09
+Last updated: 2026-04-10
 
 ## Current Status
 
@@ -13,6 +13,7 @@ Public repository:
 The current build has:
 
 - cache-backed local session indexing
+- deterministic session digest extraction
 - interactive continuity dashboard
 - project grouping
 - repo resume
@@ -82,12 +83,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
 Manual verification completed against the live Codex archive:
 
 - `dashboard --repo roompilot-ai` opened a real continuity board with the repo preselected
+- dashboard detail pane showed extracted summary, verification notes, and next-step hint for `roompilot-ai`
 - dashboard search mode filtered the session pane to the `prompt profiles` result
-- `projects` returned `30` grouped roots
+- `projects` returned `28` grouped roots
 - `resume --repo roompilot-ai` recovered the correct March 27, 2026 session from a template workspace
+- `resume --repo roompilot-ai` now exposes summary, verification, and next-step fields directly
 - `find "prompt profiles" --repo roompilot-ai` returned the expected March 24, 2026 session
 - `compare` correctly identified the March 27 session as the later continuation of the March 24 session
-- `pack --repo roompilot-ai` produced a usable resume block with the latest checkpoint and richer context anchor
+- `pack --repo roompilot-ai` produced a usable resume block with the latest checkpoint, richer continuity summary, verification notes, and next-step hint
 
 Scripted verification completed on 2026-04-06 with the isolated demo binary:
 
@@ -104,13 +107,14 @@ Scripted verification completed on 2026-04-06 with the isolated demo binary:
 
 Automated verification:
 
-- `9` unit tests passed
+- `11` unit tests passed
 - `0` unit test failures
 
 ## Known Limits
 
 - cache refresh is manual through `ccx index`
 - file extraction is heuristic, not AST- or git-diff-backed
+- session summarization is deterministic heuristic extraction, not full semantic LLM summarization
 - the dashboard currently optimizes for keyboard-driven operators, not first-time casual users
 - there is no installer/package yet; current launch shape is repo + build instructions
 

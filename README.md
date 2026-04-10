@@ -26,6 +26,7 @@ This project exists to solve that gap.
 
 - reads local Codex rollout archives from `~/.codex/sessions`
 - attributes sessions to the real project repo, even when the work happened from a template/worktree
+- derives a deterministic continuity digest with summary, verification notes, and next-step hints
 - groups sessions into project-level views
 - ranks historical chats by query
 - compares two sessions side by side
@@ -35,9 +36,9 @@ This project exists to solve that gap.
 ## Command Surface
 
 - `ccx dashboard [--repo <path>]`
-  - open the interactive continuity board with projects, sessions, detail, and live search
+  - open the interactive continuity board with projects, sessions, summaries, verification, and live search
 - `ccx sessions`
-  - list recent known sessions with attributed repo and first user goal
+  - list recent known sessions with attributed repo and continuity summary
 - `ccx projects`
   - group sessions by project/repo and show the latest known context
 - `ccx resume --repo <path>`
@@ -121,9 +122,10 @@ At a high level:
 
 1. scan local Codex rollout files
 2. extract normalized session summaries
-3. infer the real project repo from workspace + transcript mentions
-4. cache the normalized index
-5. expose a repo-aware dashboard plus commands over that index
+3. derive deterministic continuity digests from the parsed conversation text
+4. infer the real project repo from workspace + transcript mentions
+5. cache the normalized index
+6. expose a repo-aware dashboard plus commands over that index
 
 Core implementation files:
 
@@ -141,6 +143,7 @@ For the deeper internal architecture walkthrough, see [docs/ARCHITECTURE.md](./d
 Verified against the real local Codex archive:
 
 - `dashboard --repo roompilot-ai` opened the continuity board with the correct repo preselected
+- the dashboard now shows extracted summary, verification, and next-step guidance for the selected session
 - `projects` returned grouped project roots
 - `resume --repo roompilot-ai` recovered a template-based `roompilot-ai` session correctly
 - `find "prompt profiles" --repo roompilot-ai` recovered the expected historical session
@@ -149,7 +152,7 @@ Verified against the real local Codex archive:
 
 Automated checks currently included:
 
-- `9` unit tests passed
+- `11` unit tests passed
 - `0` failures
 
 ## Current Limits

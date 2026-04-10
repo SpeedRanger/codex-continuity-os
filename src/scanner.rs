@@ -70,14 +70,20 @@ pub fn summarize_projects(sessions: &[SessionSummary]) -> Vec<ProjectSummary> {
             repo_root: session.attributed_repo_root.clone(),
             session_count: 0,
             latest_started_at: session.started_at.clone(),
-            latest_goal: session.first_user_goal.clone(),
+            latest_goal: session
+                .summary
+                .clone()
+                .or_else(|| session.first_user_goal.clone()),
         });
 
         entry.session_count += 1;
 
         if session.started_at > entry.latest_started_at {
             entry.latest_started_at = session.started_at.clone();
-            entry.latest_goal = session.first_user_goal.clone();
+            entry.latest_goal = session
+                .summary
+                .clone()
+                .or_else(|| session.first_user_goal.clone());
             entry.repo_root = session.attributed_repo_root.clone();
         }
     }
@@ -161,6 +167,8 @@ fn parse_session_file(
     let mut cwd: Option<PathBuf> = None;
     let mut first_user_goal: Option<String> = None;
     let mut last_assistant_outcome: Option<String> = None;
+    let mut user_messages = Vec::<String>::new();
+    let mut assistant_messages = Vec::<String>::new();
     let mut mentioned_repo_roots = BTreeSet::<String>::new();
     let mut mentioned_files = BTreeSet::<String>::new();
 
@@ -197,13 +205,17 @@ fn parse_session_file(
                 extract_json_string(&line, "\"text\":\"").map(|text| unescape_json_string(&text));
 
             if line.contains("\"role\":\"user\"") {
-                if first_user_goal.is_none() {
-                    first_user_goal = text.as_deref().and_then(sanitize_user_text);
+                if let Some(text) = text.as_deref().and_then(sanitize_user_text) {
+                    if first_user_goal.is_none() {
+                        first_user_goal = Some(text.clone());
+                    }
+                    user_messages.push(text);
                 }
             } else if line.contains("\"role\":\"assistant\"")
                 && let Some(text) = text.as_deref().and_then(sanitize_assistant_text)
             {
-                last_assistant_outcome = Some(text);
+                last_assistant_outcome = Some(text.clone());
+                assistant_messages.push(text);
             }
         }
     }
@@ -233,6 +245,12 @@ fn parse_session_file(
         .collect::<Vec<_>>();
     let mentioned_files = mentioned_files.into_iter().collect::<Vec<_>>();
     let attributed_repo_root = choose_attributed_repo_root(&repo_root, &cwd, &mentioned_repo_roots);
+    let digest = derive_session_digest(
+        &user_messages,
+        &assistant_messages,
+        first_user_goal.as_deref(),
+        last_assistant_outcome.as_deref(),
+    );
 
     Ok(Some(SessionSummary {
         id: session_id,
@@ -244,6 +262,9 @@ fn parse_session_file(
         mentioned_files,
         first_user_goal,
         last_assistant_outcome,
+        summary: digest.summary,
+        verification_notes: digest.verification_notes,
+        next_step: digest.next_step,
     }))
 }
 
@@ -269,6 +290,184 @@ fn sanitize_assistant_text(text: &str) -> Option<String> {
     }
 
     Some(compact)
+}
+
+#[derive(Debug, Default)]
+struct SessionDigest {
+    summary: Option<String>,
+    verification_notes: Option<String>,
+    next_step: Option<String>,
+}
+
+fn derive_session_digest(
+    user_messages: &[String],
+    assistant_messages: &[String],
+    first_user_goal: Option<&str>,
+    last_assistant_outcome: Option<&str>,
+) -> SessionDigest {
+    let summary = best_summary_candidate(assistant_messages)
+        .or(last_assistant_outcome.map(str::to_owned))
+        .or(first_user_goal.map(str::to_owned))
+        .map(|text| limit_text(&text, 900));
+
+    let verification_notes = collect_signal_summary(
+        assistant_messages,
+        &[
+            "verified",
+            "verification",
+            "tested",
+            "test",
+            "passed",
+            "checked",
+            "confirmed",
+            "ran",
+            "smoke",
+            "succeeded",
+            "working",
+        ],
+        2,
+        320,
+    )
+    .or_else(|| {
+        collect_signal_summary(
+            user_messages,
+            &["tested", "verified", "confirmed", "checked"],
+            1,
+            220,
+        )
+    });
+
+    let next_step = find_next_step(assistant_messages)
+        .or_else(|| find_next_step(user_messages))
+        .map(|text| limit_text(&text, 260));
+
+    SessionDigest {
+        summary,
+        verification_notes,
+        next_step,
+    }
+}
+
+fn best_summary_candidate(assistant_messages: &[String]) -> Option<String> {
+    assistant_messages
+        .iter()
+        .max_by_key(|message| summary_candidate_score(message))
+        .and_then(|message| {
+            if summary_candidate_score(message) == 0 {
+                None
+            } else {
+                Some(message.clone())
+            }
+        })
+}
+
+fn summary_candidate_score(message: &str) -> usize {
+    let lower = message.to_lowercase();
+    let mut score = lower.len().min(450) / 6;
+
+    for needle in [
+        "here’s what we did",
+        "here's what we did",
+        "in this chat",
+        "turn-by-turn",
+        "what changed",
+        "summary",
+        "recap",
+        "implemented",
+        "added",
+        "migrated",
+        "rewrote",
+        "fixed",
+        "updated",
+        "confirmed",
+        "verified",
+        "recommended",
+        "next",
+    ] {
+        if lower.contains(needle) {
+            score += 45;
+        }
+    }
+
+    if lower.starts_with("don’t call me that") || lower.starts_with("don't call me that") {
+        score = score.saturating_sub(120);
+    }
+
+    score
+}
+
+fn collect_signal_summary(
+    messages: &[String],
+    keywords: &[&str],
+    limit: usize,
+    max_len: usize,
+) -> Option<String> {
+    let mut picks = Vec::new();
+
+    for message in messages.iter().rev() {
+        for clause in message_clauses(message) {
+            let lower = clause.to_lowercase();
+            if keywords.iter().any(|keyword| lower.contains(keyword))
+                && !picks
+                    .iter()
+                    .any(|existing: &String| existing.eq_ignore_ascii_case(&clause))
+            {
+                picks.push(limit_text(&clause, max_len));
+                if picks.len() >= limit {
+                    return Some(picks.join(" | "));
+                }
+            }
+        }
+    }
+
+    if picks.is_empty() {
+        None
+    } else {
+        Some(picks.join(" | "))
+    }
+}
+
+fn find_next_step(messages: &[String]) -> Option<String> {
+    for message in messages.iter().rev() {
+        for clause in message_clauses(message) {
+            let lower = clause.to_lowercase();
+            if [
+                "next",
+                "recommended",
+                "recommend",
+                "follow-up",
+                "remaining",
+                "still needs",
+                "should",
+                "need to",
+                "obvious move",
+                "best move",
+                "best next",
+            ]
+            .iter()
+            .any(|needle| lower.contains(needle))
+            {
+                return Some(clause);
+            }
+        }
+    }
+
+    None
+}
+
+fn message_clauses(message: &str) -> Vec<String> {
+    let with_breaks = message
+        .replace(" - ", "\n- ")
+        .replace(". ", ".\n")
+        .replace("; ", ";\n");
+
+    with_breaks
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(|line| line.trim_start_matches("- ").trim().to_owned())
+        .filter(|line| line.len() > 12)
+        .collect()
 }
 
 fn compact_text(text: &str) -> String {
@@ -415,7 +614,7 @@ fn write_cached_sessions(
 
     let mut output = String::new();
     output.push_str(&format!(
-        "CCX1\t{}\t{}\n",
+        "CCX2\t{}\t{}\n",
         fingerprint.file_count, fingerprint.latest_modified_epoch
     ));
 
@@ -441,7 +640,7 @@ fn cache_header_matches(header: &str, fingerprint: Option<&SessionFingerprint>) 
         return false;
     };
 
-    if version != "CCX1" {
+    if version != "CCX2" {
         return false;
     }
 
@@ -478,13 +677,16 @@ fn serialize_cached_session_line(session: &SessionSummary) -> String {
                 .as_deref()
                 .unwrap_or_default(),
         ),
+        sanitize_cache_field(session.summary.as_deref().unwrap_or_default()),
+        sanitize_cache_field(session.verification_notes.as_deref().unwrap_or_default()),
+        sanitize_cache_field(session.next_step.as_deref().unwrap_or_default()),
     ]
     .join("\t")
 }
 
 fn parse_cached_session_line(line: &str) -> Option<SessionSummary> {
-    let parts = line.splitn(9, '\t').collect::<Vec<_>>();
-    if parts.len() != 9 {
+    let parts = line.splitn(12, '\t').collect::<Vec<_>>();
+    if parts.len() != 12 {
         return None;
     }
 
@@ -504,6 +706,9 @@ fn parse_cached_session_line(line: &str) -> Option<SessionSummary> {
         mentioned_files,
         first_user_goal: empty_to_none(parts[7]),
         last_assistant_outcome: empty_to_none(parts[8]),
+        summary: empty_to_none(parts[9]),
+        verification_notes: empty_to_none(parts[10]),
+        next_step: empty_to_none(parts[11]),
     })
 }
 
@@ -562,6 +767,9 @@ mod tests {
             ],
             first_user_goal: Some(goal.to_owned()),
             last_assistant_outcome: Some(outcome.to_owned()),
+            summary: Some(outcome.to_owned()),
+            verification_notes: Some("Verified via smoke test".to_owned()),
+            next_step: Some("Continue with the next milestone.".to_owned()),
         }
     }
 
@@ -656,6 +864,58 @@ mod tests {
             parsed.last_assistant_outcome,
             original.last_assistant_outcome
         );
+        assert_eq!(parsed.summary, original.summary);
+        assert_eq!(parsed.verification_notes, original.verification_notes);
+        assert_eq!(parsed.next_step, original.next_step);
+    }
+
+    #[test]
+    fn derive_session_digest_prefers_recap_style_summary() {
+        let digest = derive_session_digest(
+            &["Need the exact repo continuity view.".to_owned()],
+            &[
+                "Done.".to_owned(),
+                "Here’s what we did: rewrote the response contract, added SESSION_MAP.md, and wired the workflow docs so the repo resumes cleanly.".to_owned(),
+            ],
+            Some("Need the exact repo continuity view."),
+            Some("Done."),
+        );
+
+        assert_eq!(
+            digest.summary,
+            Some(
+                "Here’s what we did: rewrote the response contract, added SESSION_MAP.md, and wired the workflow docs so the repo resumes cleanly."
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn derive_session_digest_extracts_verification_and_next_step() {
+        let digest = derive_session_digest(
+            &["Can you make the dashboard feel launch-ready?".to_owned()],
+            &[
+                "I verified the roompilot-ai flow with a live smoke test and confirmed the resume pack worked.".to_owned(),
+                "The next obvious move is to tighten the dashboard detail pane and ship a cleaner first-run flow.".to_owned(),
+            ],
+            Some("Can you make the dashboard feel launch-ready?"),
+            Some("The next obvious move is to tighten the dashboard detail pane and ship a cleaner first-run flow."),
+        );
+
+        assert_eq!(
+            digest.verification_notes,
+            Some(
+                "I verified the roompilot-ai flow with a live smoke test and confirmed the resume pack worked."
+                    .to_owned()
+            )
+        );
+        assert_eq!(
+            digest.next_step,
+            Some(
+                "The next obvious move is to tighten the dashboard detail pane and ship a cleaner first-run flow."
+                    .to_owned()
+            )
+        );
     }
 }
 
@@ -703,6 +963,9 @@ fn score_session(
             let boost = match *label {
                 "goal" => 90,
                 "outcome" => 70,
+                "summary" => 95,
+                "verification" => 50,
+                "next_step" => 55,
                 "attributed_repo" => 65,
                 "workspace_repo" => 40,
                 "mentioned_repos" => 45,
@@ -726,6 +989,9 @@ fn score_session(
         let per_term = match *label {
             "goal" => 12,
             "outcome" => 9,
+            "summary" => 13,
+            "verification" => 7,
+            "next_step" => 8,
             "attributed_repo" => 8,
             "workspace_repo" => 5,
             "mentioned_repos" => 6,
@@ -772,6 +1038,30 @@ fn session_search_fields(session: &SessionSummary) -> Vec<(&'static str, String)
             "outcome",
             session
                 .last_assistant_outcome
+                .as_deref()
+                .unwrap_or_default()
+                .to_lowercase(),
+        ),
+        (
+            "summary",
+            session
+                .summary
+                .as_deref()
+                .unwrap_or_default()
+                .to_lowercase(),
+        ),
+        (
+            "verification",
+            session
+                .verification_notes
+                .as_deref()
+                .unwrap_or_default()
+                .to_lowercase(),
+        ),
+        (
+            "next_step",
+            session
+                .next_step
                 .as_deref()
                 .unwrap_or_default()
                 .to_lowercase(),

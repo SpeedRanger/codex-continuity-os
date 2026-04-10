@@ -11,6 +11,9 @@ pub struct SessionSummary {
     pub mentioned_files: Vec<String>,
     pub first_user_goal: Option<String>,
     pub last_assistant_outcome: Option<String>,
+    pub summary: Option<String>,
+    pub verification_notes: Option<String>,
+    pub next_step: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -83,7 +83,8 @@ Open any repo and, within 30 seconds, understand:
 
 - the most relevant recent session
 - the project goal
-- the latest meaningful outcome
+- the best continuity summary
+- what was verified
 - the files that mattered
 - the best next action
 
@@ -94,6 +95,7 @@ Open any repo and, within 30 seconds, understand:
 - archive scanning over `~/.codex/sessions`
 - repo attribution across indirect workspaces
 - cache-backed session index
+- deterministic continuity digest with summary, verification notes, and next-step hinting
 - `projects`
 - `resume`
 - `find`
@@ -103,8 +105,8 @@ Open any repo and, within 30 seconds, understand:
 
 ### In Scope Next
 
-- better session summarization across the whole transcript
 - stronger product polish in the dashboard
+- explicit why-this-session-won reasoning in the dashboard
 - canonical product ops docs and task management
 - packaged distribution
 
@@ -178,6 +180,7 @@ Success means the next Codex session can start with a compact, useful context bl
 - parse session metadata reliably
 - extract meaningful user goal
 - extract meaningful assistant outcome
+- extract deterministic summary, verification, and next-step signals from the parsed conversation
 - identify repo mentions and file mentions
 - attribute sessions to the correct downstream project when possible
 

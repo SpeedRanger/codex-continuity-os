@@ -1,6 +1,6 @@
 # Project Walkthrough
 
-Last updated: 2026-04-09
+Last updated: 2026-04-10
 
 ## Purpose
 
@@ -136,6 +136,9 @@ Each normalized session record currently includes:
 - `mentioned_files`
 - `first_user_goal`
 - `last_assistant_outcome`
+- `summary`
+- `verification_notes`
+- `next_step`
 
 That is enough structure to support:
 
@@ -144,6 +147,19 @@ That is enough structure to support:
 - ranked search
 - side-by-side comparison
 - resume-pack generation
+
+The important upgrade is that the product no longer relies only on:
+
+- first user message
+- last assistant message
+
+It now derives a deterministic session digest from the whole parsed conversation slice it can see:
+
+- the strongest recap-style assistant message becomes `summary`
+- verification-like clauses become `verification_notes`
+- forward-looking clauses become `next_step`
+
+This is still heuristic and local, not LLM summarization, but it is materially better than the original placeholder-quality extraction.
 
 ## What Each Command Does
 
@@ -160,6 +176,13 @@ It gives you:
 - rich detail pane for the selected session
 - live search inside the selected project's sessions
 - a next-step hint panel
+
+The detail pane is now organized around the continuity questions that actually matter:
+
+- snapshot
+- goal
+- summary plus verification
+- what to do next
 
 Keyboard flow:
 
@@ -201,6 +224,9 @@ The scoring looks at:
 
 - goal text
 - assistant outcome text
+- extracted summary
+- extracted verification notes
+- extracted next-step hint
 - repo evidence
 - session id
 

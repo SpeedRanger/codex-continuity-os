@@ -518,7 +518,7 @@ impl DashboardApp {
                     .latest_goal
                     .as_deref()
                     .map(|text| scanner::limit_text(text, 60))
-                    .unwrap_or_else(|| "no meaningful user goal extracted".to_owned());
+                    .unwrap_or_else(|| "no meaningful project summary extracted".to_owned());
                 ListItem::new(vec![
                     Line::from(vec![
                         Span::styled(
@@ -583,10 +583,12 @@ impl DashboardApp {
                 .iter()
                 .map(|session| {
                     let goal = session
-                        .first_user_goal
+                        .summary
+                        .as_deref()
+                        .or(session.first_user_goal.as_deref())
                         .as_deref()
                         .map(|text| scanner::limit_text(text, 72))
-                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned());
+                        .unwrap_or_else(|| "no meaningful session summary extracted".to_owned());
                     ListItem::new(vec![
                         Line::from(vec![
                             Span::styled(
@@ -643,8 +645,8 @@ impl DashboardApp {
             .constraints([
                 Constraint::Length(5),
                 Constraint::Length(6),
-                Constraint::Min(7),
-                Constraint::Length(6),
+                Constraint::Min(9),
+                Constraint::Length(7),
             ])
             .split(inner);
 
@@ -657,7 +659,7 @@ impl DashboardApp {
             sections[1],
         );
         frame.render_widget(
-            detail_paragraph(self.detail_outcome_text(), "Outcome + Files"),
+            detail_paragraph(self.detail_outcome_text(), "Summary + Verification"),
             sections[2],
         );
         frame.render_widget(
@@ -727,17 +729,30 @@ impl DashboardApp {
 
     fn detail_outcome_text(&self) -> Text<'static> {
         let Some(session) = self.selected_session() else {
-            return Text::from("Select a session to see the outcome and touched files.");
+            return Text::from("Select a session to see the continuity summary and touched files.");
         };
 
         let mut lines = vec![
             Line::from(Span::styled(
                 excerpt_or_default(
-                    session.last_assistant_outcome.as_deref(),
-                    320,
-                    "No meaningful assistant outcome extracted.",
+                    session.summary.as_deref(),
+                    360,
+                    "No meaningful continuity summary extracted.",
                 ),
                 Style::default().fg(INK),
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Verification",
+                Style::default().fg(OLIVE).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(Span::styled(
+                excerpt_or_default(
+                    session.verification_notes.as_deref(),
+                    240,
+                    "No explicit verification notes extracted.",
+                ),
+                Style::default().fg(MUTED),
             )),
             Line::from(""),
             Line::from(Span::styled(
@@ -781,14 +796,7 @@ impl DashboardApp {
         let latest = related.first().copied();
         let anchor = related
             .iter()
-            .max_by_key(|session| {
-                session
-                    .last_assistant_outcome
-                    .as_deref()
-                    .map(|text| text.len())
-                    .unwrap_or(0)
-                    + session.mentioned_files.len() * 4
-            })
+            .max_by_key(|session| session_context_score(session))
             .copied();
 
         let Some(latest) = latest else {
@@ -801,6 +809,17 @@ impl DashboardApp {
                 "This project already has enough continuity to resume immediately.",
                 Style::default().fg(INK).add_modifier(Modifier::BOLD),
             )),
+            Line::from(vec![
+                Span::styled("Extracted next step: ", Style::default().fg(BRASS)),
+                Span::styled(
+                    excerpt_or_default(
+                        latest.next_step.as_deref(),
+                        120,
+                        "No next-step hint extracted yet.",
+                    ),
+                    Style::default().fg(MUTED),
+                ),
+            ]),
             Line::from(vec![
                 Span::styled("Latest checkpoint: ", Style::default().fg(BRASS)),
                 Span::styled(latest.id.clone(), Style::default().fg(INK)),
@@ -907,6 +926,25 @@ fn move_index(current: Option<usize>, len: usize, delta: isize) -> Option<usize>
     let current = current.unwrap_or(0) as isize;
     let next = (current + delta).clamp(0, len as isize - 1) as usize;
     Some(next)
+}
+
+fn session_context_score(session: &SessionSummary) -> usize {
+    session
+        .summary
+        .as_deref()
+        .map(|text| text.len())
+        .unwrap_or(0)
+        + session
+            .verification_notes
+            .as_deref()
+            .map(|text| text.len() / 2)
+            .unwrap_or(0)
+        + session
+            .next_step
+            .as_deref()
+            .map(|text| text.len() / 2)
+            .unwrap_or(0)
+        + session.mentioned_files.len() * 6
 }
 
 fn detail_paragraph(text: Text<'static>, title: &str) -> Paragraph<'static> {

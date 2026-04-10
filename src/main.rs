@@ -40,10 +40,16 @@ fn run(cli: Cli) -> Result<()> {
                 println!("workspace_repo: {}", best.repo_root.display());
                 println!("attributed_repo: {}", best.attributed_repo_root.display());
                 println!("goal: {}", display_excerpt(best.first_user_goal.as_deref()));
+                println!("summary: {}", display_excerpt(best.summary.as_deref()));
                 println!(
                     "last_outcome: {}",
                     display_excerpt(best.last_assistant_outcome.as_deref())
                 );
+                println!(
+                    "verification: {}",
+                    display_excerpt(best.verification_notes.as_deref())
+                );
+                println!("next_step: {}", display_excerpt(best.next_step.as_deref()));
                 println!("recent_sessions_in_repo: {}", matching.len());
                 if !best.mentioned_repo_roots.is_empty() {
                     println!(
@@ -95,6 +101,10 @@ fn run(cli: Cli) -> Result<()> {
                     println!(
                         "  outcome: {}",
                         display_excerpt(hit.session.last_assistant_outcome.as_deref())
+                    );
+                    println!(
+                        "  summary: {}",
+                        display_excerpt(hit.session.summary.as_deref())
                     );
                     println!("  why: {}", hit.why.join(" | "));
                 }
@@ -158,6 +168,15 @@ fn run(cli: Cli) -> Result<()> {
                 "  outcome: {}",
                 display_excerpt(left.last_assistant_outcome.as_deref())
             );
+            println!("  summary: {}", display_excerpt(left.summary.as_deref()));
+            println!(
+                "  verification: {}",
+                display_excerpt(left.verification_notes.as_deref())
+            );
+            println!(
+                "  next_step: {}",
+                display_excerpt(left.next_step.as_deref())
+            );
             println!("  files: {}", preview_values(&left_focus_files, 8));
             println!();
             println!("session_b_summary:");
@@ -174,6 +193,15 @@ fn run(cli: Cli) -> Result<()> {
             println!(
                 "  outcome: {}",
                 display_excerpt(right.last_assistant_outcome.as_deref())
+            );
+            println!("  summary: {}", display_excerpt(right.summary.as_deref()));
+            println!(
+                "  verification: {}",
+                display_excerpt(right.verification_notes.as_deref())
+            );
+            println!(
+                "  next_step: {}",
+                display_excerpt(right.next_step.as_deref())
             );
             println!("  files: {}", preview_values(&right_focus_files, 8));
             println!();
@@ -259,9 +287,25 @@ fn run(cli: Cli) -> Result<()> {
             println!(
                 "Best continuity summary: {}",
                 excerpt_or_default(
-                    context_anchor.last_assistant_outcome.as_deref(),
+                    context_anchor.summary.as_deref(),
                     700,
-                    "No meaningful assistant outcome extracted."
+                    "No meaningful continuity summary extracted."
+                )
+            );
+            println!(
+                "Verification notes: {}",
+                excerpt_or_default(
+                    context_anchor.verification_notes.as_deref(),
+                    260,
+                    "No verification notes extracted."
+                )
+            );
+            println!(
+                "Next step: {}",
+                excerpt_or_default(
+                    source.next_step.as_deref(),
+                    240,
+                    "No next-step hint extracted."
                 )
             );
             println!("Recent related sessions:");
@@ -271,9 +315,12 @@ fn run(cli: Cli) -> Result<()> {
                     session.started_at,
                     session.id,
                     excerpt_or_default(
-                        session.first_user_goal.as_deref(),
+                        session
+                            .summary
+                            .as_deref()
+                            .or(session.first_user_goal.as_deref()),
                         110,
-                        "no meaningful user goal extracted"
+                        "no meaningful session summary extracted"
                     )
                 );
             }
@@ -304,10 +351,12 @@ fn run(cli: Cli) -> Result<()> {
                     session.attributed_repo_root.display(),
                     session.repo_root.display(),
                     session
-                        .first_user_goal
+                        .summary
+                        .as_deref()
+                        .or(session.first_user_goal.as_deref())
                         .as_deref()
                         .map(|text| scanner::limit_text(text, 140))
-                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned())
+                        .unwrap_or_else(|| "no meaningful session summary extracted".to_owned())
                 );
             }
         }
@@ -328,7 +377,7 @@ fn run(cli: Cli) -> Result<()> {
                         .latest_goal
                         .as_deref()
                         .map(|text| scanner::limit_text(text, 140))
-                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned())
+                        .unwrap_or_else(|| "no meaningful project summary extracted".to_owned())
                 );
             }
         }
@@ -553,11 +602,21 @@ fn is_repo_file_candidate(value: &str, attributed_root: &str, workspace_root: &s
 
 fn context_score(session: &model::SessionSummary) -> usize {
     session
-        .last_assistant_outcome
+        .summary
         .as_deref()
         .map(|text| text.len())
         .unwrap_or(0)
-        + session.mentioned_files.len() * 4
+        + session
+            .verification_notes
+            .as_deref()
+            .map(|text| text.len() / 2)
+            .unwrap_or(0)
+        + session
+            .next_step
+            .as_deref()
+            .map(|text| text.len() / 2)
+            .unwrap_or(0)
+        + session.mentioned_files.len() * 6
 }
 
 fn pack_file_priority(value: &str) -> (usize, String) {
@@ -605,6 +664,9 @@ mod tests {
             mentioned_files: files.into_iter().map(str::to_owned).collect(),
             first_user_goal: Some("Goal".to_owned()),
             last_assistant_outcome: Some("Outcome".to_owned()),
+            summary: Some("Summary".to_owned()),
+            verification_notes: Some("Verified with smoke test".to_owned()),
+            next_step: Some("Run the next workflow step.".to_owned()),
         }
     }
 
