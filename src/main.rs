@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 
 mod model;
 mod scanner;
+mod tui;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -10,7 +11,15 @@ fn main() -> Result<()> {
 }
 
 fn run(cli: Cli) -> Result<()> {
-    match cli.command {
+    let command = match cli.command {
+        Some(command) => command,
+        None => Command::Dashboard { repo: None },
+    };
+
+    match command {
+        Command::Dashboard { repo } => {
+            tui::run_dashboard(repo)?;
+        }
         Command::Resume { repo } => {
             let (sessions, source) = scanner::load_sessions()?;
             let repo_root = scanner::current_repo_root(repo.as_deref())?;
@@ -30,14 +39,17 @@ fn run(cli: Cli) -> Result<()> {
                 println!("cwd: {}", best.cwd.display());
                 println!("workspace_repo: {}", best.repo_root.display());
                 println!("attributed_repo: {}", best.attributed_repo_root.display());
-                println!(
-                    "goal: {}",
-                    display_excerpt(best.first_user_goal.as_deref())
-                );
+                println!("goal: {}", display_excerpt(best.first_user_goal.as_deref()));
+                println!("summary: {}", display_excerpt(best.summary.as_deref()));
                 println!(
                     "last_outcome: {}",
                     display_excerpt(best.last_assistant_outcome.as_deref())
                 );
+                println!(
+                    "verification: {}",
+                    display_excerpt(best.verification_notes.as_deref())
+                );
+                println!("next_step: {}", display_excerpt(best.next_step.as_deref()));
                 println!("recent_sessions_in_repo: {}", matching.len());
                 if !best.mentioned_repo_roots.is_empty() {
                     println!(
@@ -90,6 +102,10 @@ fn run(cli: Cli) -> Result<()> {
                         "  outcome: {}",
                         display_excerpt(hit.session.last_assistant_outcome.as_deref())
                     );
+                    println!(
+                        "  summary: {}",
+                        display_excerpt(hit.session.summary.as_deref())
+                    );
                     println!("  why: {}", hit.why.join(" | "));
                 }
             }
@@ -123,8 +139,8 @@ fn run(cli: Cli) -> Result<()> {
                 }
             };
 
-            let same_repo =
-                normalize_path(&left.attributed_repo_root) == normalize_path(&right.attributed_repo_root);
+            let same_repo = normalize_path(&left.attributed_repo_root)
+                == normalize_path(&right.attributed_repo_root);
             let same_workspace_repo =
                 normalize_path(&left.repo_root) == normalize_path(&right.repo_root);
             let left_focus_files = session_focus_files(left);
@@ -132,7 +148,8 @@ fn run(cli: Cli) -> Result<()> {
             let common_files = common_values(&left_focus_files, &right_focus_files);
             let only_in_a = left_only_values(&left_focus_files, &right_focus_files);
             let only_in_b = left_only_values(&right_focus_files, &left_focus_files);
-            let common_repos = common_path_values(&left.mentioned_repo_roots, &right.mentioned_repo_roots);
+            let common_repos =
+                common_path_values(&left.mentioned_repo_roots, &right.mentioned_repo_roots);
             let relation = infer_session_relation(left, right, same_repo, same_workspace_repo);
 
             println!("relation: {relation}");
@@ -143,36 +160,54 @@ fn run(cli: Cli) -> Result<()> {
             println!("  started_at: {}", left.started_at);
             println!("  workspace_repo: {}", left.repo_root.display());
             println!("  attributed_repo: {}", left.attributed_repo_root.display());
-            println!("  goal: {}", display_excerpt(left.first_user_goal.as_deref()));
+            println!(
+                "  goal: {}",
+                display_excerpt(left.first_user_goal.as_deref())
+            );
             println!(
                 "  outcome: {}",
                 display_excerpt(left.last_assistant_outcome.as_deref())
+            );
+            println!("  summary: {}", display_excerpt(left.summary.as_deref()));
+            println!(
+                "  verification: {}",
+                display_excerpt(left.verification_notes.as_deref())
+            );
+            println!(
+                "  next_step: {}",
+                display_excerpt(left.next_step.as_deref())
             );
             println!("  files: {}", preview_values(&left_focus_files, 8));
             println!();
             println!("session_b_summary:");
             println!("  started_at: {}", right.started_at);
             println!("  workspace_repo: {}", right.repo_root.display());
-            println!("  attributed_repo: {}", right.attributed_repo_root.display());
-            println!("  goal: {}", display_excerpt(right.first_user_goal.as_deref()));
+            println!(
+                "  attributed_repo: {}",
+                right.attributed_repo_root.display()
+            );
+            println!(
+                "  goal: {}",
+                display_excerpt(right.first_user_goal.as_deref())
+            );
             println!(
                 "  outcome: {}",
                 display_excerpt(right.last_assistant_outcome.as_deref())
             );
+            println!("  summary: {}", display_excerpt(right.summary.as_deref()));
+            println!(
+                "  verification: {}",
+                display_excerpt(right.verification_notes.as_deref())
+            );
+            println!(
+                "  next_step: {}",
+                display_excerpt(right.next_step.as_deref())
+            );
             println!("  files: {}", preview_values(&right_focus_files, 8));
             println!();
-            println!(
-                "common_files: {}",
-                preview_values(&common_files, 10)
-            );
-            println!(
-                "only_in_a: {}",
-                preview_values(&only_in_a, 10)
-            );
-            println!(
-                "only_in_b: {}",
-                preview_values(&only_in_b, 10)
-            );
+            println!("common_files: {}", preview_values(&common_files, 10));
+            println!("only_in_a: {}", preview_values(&only_in_a, 10));
+            println!("only_in_b: {}", preview_values(&only_in_b, 10));
             println!(
                 "common_mentioned_repos: {}",
                 preview_values(&common_repos, 8)
@@ -243,14 +278,34 @@ fn run(cli: Cli) -> Result<()> {
             println!("Context anchor session: {}", context_anchor.id);
             println!(
                 "Current goal: {}",
-                excerpt_or_default(source.first_user_goal.as_deref(), 320, "No meaningful user goal extracted.")
+                excerpt_or_default(
+                    source.first_user_goal.as_deref(),
+                    320,
+                    "No meaningful user goal extracted."
+                )
             );
             println!(
                 "Best continuity summary: {}",
                 excerpt_or_default(
-                    context_anchor.last_assistant_outcome.as_deref(),
+                    context_anchor.summary.as_deref(),
                     700,
-                    "No meaningful assistant outcome extracted."
+                    "No meaningful continuity summary extracted."
+                )
+            );
+            println!(
+                "Verification notes: {}",
+                excerpt_or_default(
+                    context_anchor.verification_notes.as_deref(),
+                    260,
+                    "No verification notes extracted."
+                )
+            );
+            println!(
+                "Next step: {}",
+                excerpt_or_default(
+                    source.next_step.as_deref(),
+                    240,
+                    "No next-step hint extracted."
                 )
             );
             println!("Recent related sessions:");
@@ -260,9 +315,12 @@ fn run(cli: Cli) -> Result<()> {
                     session.started_at,
                     session.id,
                     excerpt_or_default(
-                        session.first_user_goal.as_deref(),
+                        session
+                            .summary
+                            .as_deref()
+                            .or(session.first_user_goal.as_deref()),
                         110,
-                        "no meaningful user goal extracted"
+                        "no meaningful session summary extracted"
                     )
                 );
             }
@@ -293,10 +351,12 @@ fn run(cli: Cli) -> Result<()> {
                     session.attributed_repo_root.display(),
                     session.repo_root.display(),
                     session
-                        .first_user_goal
+                        .summary
+                        .as_deref()
+                        .or(session.first_user_goal.as_deref())
                         .as_deref()
                         .map(|text| scanner::limit_text(text, 140))
-                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned())
+                        .unwrap_or_else(|| "no meaningful session summary extracted".to_owned())
                 );
             }
         }
@@ -317,7 +377,7 @@ fn run(cli: Cli) -> Result<()> {
                         .latest_goal
                         .as_deref()
                         .map(|text| scanner::limit_text(text, 140))
-                        .unwrap_or_else(|| "no meaningful user goal extracted".to_owned())
+                        .unwrap_or_else(|| "no meaningful project summary extracted".to_owned())
                 );
             }
         }
@@ -341,11 +401,18 @@ fn run(cli: Cli) -> Result<()> {
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Open the interactive continuity dashboard.
+    #[command(alias = "ui")]
+    Dashboard {
+        /// Optional repo path to preselect in the dashboard.
+        #[arg(long)]
+        repo: Option<String>,
+    },
     /// Recover the best resume context for the current repo.
     Resume {
         /// Optional repo path to inspect instead of the current directory.
@@ -438,10 +505,7 @@ fn left_only_values(left: &[String], right: &[String]) -> Vec<String> {
         .collect()
 }
 
-fn common_path_values(
-    left: &[std::path::PathBuf],
-    right: &[std::path::PathBuf],
-) -> Vec<String> {
+fn common_path_values(left: &[std::path::PathBuf], right: &[std::path::PathBuf]) -> Vec<String> {
     let right_set = right
         .iter()
         .map(|path| normalize_path(path))
@@ -503,12 +567,7 @@ fn session_focus_files(session: &model::SessionSummary) -> Vec<String> {
         .collect::<Vec<_>>();
 
     if focused.is_empty() {
-        session
-            .mentioned_files
-            .iter()
-            .take(20)
-            .cloned()
-            .collect()
+        session.mentioned_files.iter().take(20).cloned().collect()
     } else {
         focused
     }
@@ -543,40 +602,48 @@ fn is_repo_file_candidate(value: &str, attributed_root: &str, workspace_root: &s
 
 fn context_score(session: &model::SessionSummary) -> usize {
     session
-        .last_assistant_outcome
+        .summary
         .as_deref()
         .map(|text| text.len())
         .unwrap_or(0)
-        + session.mentioned_files.len() * 4
+        + session
+            .verification_notes
+            .as_deref()
+            .map(|text| text.len() / 2)
+            .unwrap_or(0)
+        + session
+            .next_step
+            .as_deref()
+            .map(|text| text.len() / 2)
+            .unwrap_or(0)
+        + session.mentioned_files.len() * 6
 }
 
 fn pack_file_priority(value: &str) -> (usize, String) {
     let lower = value.replace('\\', "/").to_lowercase();
-    let bucket = if lower.contains("/backend/")
-        || lower.contains("/frontend/")
-        || lower.contains("/src/")
-    {
-        0
-    } else if lower.ends_with("/state_of_play.md")
-        || lower.ends_with("/prompt_profiles.md")
-        || lower.ends_with("/agents.md")
-        || lower.ends_with("/architecture.md")
-        || lower.ends_with("/continuity.md")
-    {
-        1
-    } else if lower.contains("/docs/") {
-        2
-    } else if lower.contains("/.agent/compare/") {
-        3
-    } else if lower.contains("/.agent/e2e/") {
-        4
-    } else if lower.contains("/.agent/history/") {
-        6
-    } else if lower.starts_with("./scripts/") {
-        7
-    } else {
-        5
-    };
+    let bucket =
+        if lower.contains("/backend/") || lower.contains("/frontend/") || lower.contains("/src/") {
+            0
+        } else if lower.ends_with("/state_of_play.md")
+            || lower.ends_with("/prompt_profiles.md")
+            || lower.ends_with("/agents.md")
+            || lower.ends_with("/architecture.md")
+            || lower.ends_with("/continuity.md")
+        {
+            1
+        } else if lower.contains("/docs/") {
+            2
+        } else if lower.contains("/.agent/compare/") {
+            3
+        } else if lower.contains("/.agent/e2e/") {
+            4
+        } else if lower.contains("/.agent/history/") {
+            6
+        } else if lower.starts_with("./scripts/") {
+            7
+        } else {
+            5
+        };
 
     (bucket, lower)
 }
@@ -597,6 +664,9 @@ mod tests {
             mentioned_files: files.into_iter().map(str::to_owned).collect(),
             first_user_goal: Some("Goal".to_owned()),
             last_assistant_outcome: Some("Outcome".to_owned()),
+            summary: Some("Summary".to_owned()),
+            verification_notes: Some("Verified with smoke test".to_owned()),
+            next_step: Some("Run the next workflow step.".to_owned()),
         }
     }
 
@@ -611,7 +681,11 @@ mod tests {
         let focused = session_focus_files(&session);
 
         assert_eq!(focused.len(), 2);
-        assert!(focused.iter().all(|value| !value.contains("/.agents/skills/")));
+        assert!(
+            focused
+                .iter()
+                .all(|value| !value.contains("/.agents/skills/"))
+        );
     }
 
     #[test]
@@ -624,13 +698,17 @@ mod tests {
 
         let deduped = dedupe_values(&values);
 
-        assert_eq!(deduped, vec!["README.md".to_owned(), "src/main.rs".to_owned()]);
+        assert_eq!(
+            deduped,
+            vec!["README.md".to_owned(), "src/main.rs".to_owned()]
+        );
     }
 
     #[test]
     fn pack_file_priority_prefers_code_before_history_noise() {
-        let code_priority =
-            pack_file_priority("D:/saas-workspace/products/roompilot-ai/backend/app/core/config.py");
+        let code_priority = pack_file_priority(
+            "D:/saas-workspace/products/roompilot-ai/backend/app/core/config.py",
+        );
         let history_priority = pack_file_priority(
             "D:/saas-workspace/products/roompilot-ai/.agent/history/api/index.jsonl",
         );

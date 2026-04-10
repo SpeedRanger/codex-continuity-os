@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codex Continuity OS Live Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f5f0e6;
+      --paper-2: #ebe3d4;
+      --ink: #1e2730;
+      --muted: #5f6a70;
+      --line: #c8bda9;
+      --brass: #8b6b31;
+      --olive: #6d7357;
+      --rust: #8d4f39;
+      --slate: #31414a;
+      --terminal: #14191d;
+      --terminal-line: #283038;
+      --terminal-ink: #d9e2ea;
+      --terminal-dim: #91a0ac;
+      --terminal-good: #7fcea0;
+      --terminal-accent: #e6c784;
+      --shadow: 0 18px 50px rgba(26, 31, 35, 0.08);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Literata", Georgia, serif;
+      background:
+        radial-gradient(circle at top left, rgba(139, 107, 49, 0.09), transparent 30%),
+        linear-gradient(180deg, #f8f5ed 0%, var(--paper) 100%);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    .page {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 32px 0 80px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: rgba(255, 252, 246, 0.8);
+      border: 1px solid rgba(139, 107, 49, 0.25);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 26px 28px;
+      min-width: 0;
+    }
+
+    .eyebrow,
+    .badge {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--brass);
+    }
+
+    h1, h2, h3 {
+      font-weight: 700;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 5vw, 4.5rem);
+      margin-top: 10px;
+      max-width: 10ch;
+    }
+
+    .lede {
+      margin: 18px 0 0;
+      color: var(--muted);
+      max-width: 58ch;
+      font-size: 1.05rem;
+    }
+
+    .summary-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .summary-item {
+      padding: 16px 18px;
+      border-radius: 16px;
+      border: 1px solid rgba(49, 65, 74, 0.15);
+      background: linear-gradient(180deg, rgba(255,255,255,0.76), rgba(248,242,232,0.7));
+    }
+
+    .summary-item strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 44px 0 16px;
+    }
+
+    .section-title h2 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 48ch;
+    }
+
+    .flow {
+      display: grid;
+      gap: 18px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .step-label {
+      position: sticky;
+      top: 18px;
+      border-top: 2px solid var(--brass);
+      padding-top: 12px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--slate);
+    }
+
+    .step-card {
+      background: rgba(255, 253, 249, 0.92);
+      border: 1px solid rgba(49, 65, 74, 0.12);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 14px 40px rgba(26, 31, 35, 0.06);
+    }
+
+    .step-meta {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 0;
+      border-bottom: 1px solid rgba(49, 65, 74, 0.12);
+      background: linear-gradient(180deg, rgba(244, 238, 227, 0.9), rgba(237, 229, 214, 0.82));
+    }
+
+    .step-meta > div {
+      padding: 18px 20px;
+      min-width: 0;
+    }
+
+    .step-meta strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .step-meta p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .terminal {
+      background: linear-gradient(180deg, #161b20, #101418);
+      color: var(--terminal-ink);
+      padding: 18px 20px 20px;
+      border-bottom: 1px solid rgba(49, 65, 74, 0.12);
+    }
+
+    .terminal-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      color: var(--terminal-dim);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot.red { background: #d87c6d; }
+    .dot.yellow { background: #d9bb6d; }
+    .dot.green { background: #7ec79a; }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      line-height: 1.58;
+      color: var(--terminal-ink);
+    }
+
+    .prompt { color: var(--terminal-accent); }
+    .ok { color: var(--terminal-good); }
+    .dim { color: var(--terminal-dim); }
+
+    .lesson-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+    }
+
+    .lesson {
+      padding: 18px 20px;
+      border-right: 1px solid rgba(49, 65, 74, 0.12);
+      min-width: 0;
+    }
+
+    .lesson:last-child { border-right: none; }
+
+    .lesson h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .lesson p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .teaching {
+      margin-top: 40px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .teach-card {
+      padding: 22px 24px;
+      border-radius: 18px;
+      background: rgba(255, 252, 246, 0.82);
+      border: 1px solid rgba(109, 115, 87, 0.2);
+      box-shadow: var(--shadow);
+    }
+
+    .teach-card ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+    }
+
+    .teach-card li { margin: 6px 0; }
+
+    .feel-strip {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .feel {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid rgba(141, 79, 57, 0.18);
+      border-radius: 16px;
+      padding: 16px 18px;
+    }
+
+    .feel strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .feel span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    code {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.92em;
+      background: rgba(139, 107, 49, 0.12);
+      padding: 0.12rem 0.34rem;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .teaching,
+      .feel-strip,
+      .lesson-grid,
+      .step,
+      .step-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .lesson { border-right: none; border-bottom: 1px solid rgba(49, 65, 74, 0.12); }
+      .lesson:last-child { border-bottom: none; }
+      .step-label { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="card">
+        <div class="eyebrow">Operator View</div>
+        <h1>How This Product Actually Feels To Use</h1>
+        <p class="lede">
+          Codex Continuity OS is not a GUI app yet. It feels like a sharp terminal sidecar:
+          one cold setup step, then fast recovery commands that tell you which chat mattered,
+          why it mattered, and what to do next.
+        </p>
+      </div>
+      <div class="card summary-grid">
+        <div class="summary-item">
+          <strong>What you type</strong>
+          A handful of commands like <code>index</code>, <code>resume</code>, <code>find</code>, <code>compare</code>, <code>pack</code>.
+        </div>
+        <div class="summary-item">
+          <strong>What comes back</strong>
+          Project-aware summaries, not raw session ids.
+        </div>
+        <div class="summary-item">
+          <strong>What you learn</strong>
+          Which repo the chat was really about, which session is the best checkpoint, and how two chats relate.
+        </div>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <h2>The Feel In One Sentence</h2>
+      <p>Cold start is “build the memory layer.” After that, it feels like querying a local intelligence index over your Codex history.</p>
+    </div>
+
+    <div class="feel-strip">
+      <div class="feel">
+        <strong>Cold step</strong>
+        <span><code>ccx index</code> is the expensive step because it scans and normalizes the archive.</span>
+      </div>
+      <div class="feel">
+        <strong>Hot step</strong>
+        <span>Once indexed, core commands come back in roughly 100–150ms on your machine.</span>
+      </div>
+      <div class="feel">
+        <strong>Best moment</strong>
+        <span><code>resume</code> recovers a product repo even when the chat happened from a template workspace.</span>
+      </div>
+      <div class="feel">
+        <strong>Current shape</strong>
+        <span>This is a strong CLI operator tool, not a polished desktop product yet.</span>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>Live Demo Flow</h2>
+      <p>This is the actual verified path against <code>roompilot-ai</code>, using the real archived sessions and measured timings.</p>
+    </div>
+
+    <div class="flow">
+      <div class="step">
+        <div class="step-label">Step 1<br>Index</div>
+        <div class="step-card">
+          <div class="step-meta">
+            <div>
+              <span class="badge">What you do</span>
+              <strong>Build the memory layer once</strong>
+              <p>You run <code>ccx index</code> so the tool parses the session archive and writes its local cache.</p>
+            </div>
+            <div>
+              <span class="badge">Measured</span>
+              <strong>57.3s cold start</strong>
+              <p>This is the slowest part of the product. It is expected on first run.</p>
+            </div>
+          </div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span>codex-continuity-os / isolated demo build</span>
+            </div>
+            <pre><span class="prompt">PS&gt;</span> powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
+
+=== Rebuild cache ===
+ccx index
+<span class="ok">status: rebuilt</span>
+sessions_indexed: 322
+ELAPSED_MS=57352</pre>
+          </div>
+          <div class="lesson-grid">
+            <div class="lesson">
+              <h3>What you just learned</h3>
+              <p>The tool does not fake continuity. It builds a real local index over your Codex history.</p>
+            </div>
+            <div class="lesson">
+              <h3>Why it matters</h3>
+              <p>That one expensive step is what makes the rest of the experience feel fast and grounded.</p>
+            </div>
+            <div class="lesson">
+              <h3>Transferable pattern</h3>
+              <p>Cold indexing + hot queries is the right product shape whenever you are mining local history.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 2<br>Projects</div>
+        <div class="step-card">
+          <div class="step-meta">
+            <div>
+              <span class="badge">What you do</span>
+              <strong>Ask what projects exist in the archive</strong>
+              <p>This gives you a portfolio view before you dive into one repo.</p>
+            </div>
+            <div>
+              <span class="badge">Measured</span>
+              <strong>103ms</strong>
+              <p>This is the “hot path” experience after the cache exists.</p>
+            </div>
+          </div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span>projects</span>
+            </div>
+            <pre><span class="prompt">PS&gt;</span> ccx projects
+ccx projects
+session_source: cache
+count: 30
+- 2026-04-02T18:26:13.767Z | sessions=1 | D:\saas-workspace\products\codex-continuity-os | CAn you find the three chats from this conversation transcript: ...
+- 2026-03-27T19:06:46.513Z | sessions=2 | D:\saas-workspace\products\roompilot-ai | I was working on a project called roompilot-ai ...
+- 2026-03-25T15:10:00.349Z | sessions=5 | D:\saas-workspace\products\pix-finder | On the task of improving response_format ...
+ELAPSED_MS=103</pre>
+          </div>
+          <div class="lesson-grid">
+            <div class="lesson">
+              <h3>What it feels like</h3>
+              <p>A dashboard, but in terminal form. You get a compact project map instead of scrolling raw sessions.</p>
+            </div>
+            <div class="lesson">
+              <h3>What the command means</h3>
+              <p>This is not “list folders.” It is “list repos inferred from historical work.”</p>
+            </div>
+            <div class="lesson">
+              <h3>Why this is useful</h3>
+              <p>It helps you re-orient when you have many chats across many repos and can’t remember where work happened.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 3<br>Resume</div>
+        <div class="step-card">
+          <div class="step-meta">
+            <div>
+              <span class="badge">What you do</span>
+              <strong>Ask: what were we doing in this repo?</strong>
+              <p>This is the flagship command and the strongest product moment today.</p>
+            </div>
+            <div>
+              <span class="badge">Measured</span>
+              <strong>142ms</strong>
+              <p>Fast enough to feel like an immediate repo memory lookup.</p>
+            </div>
+          </div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span>resume roompilot-ai</span>
+            </div>
+            <pre><span class="prompt">PS&gt;</span> ccx resume --repo D:\saas-workspace\products\roompilot-ai
+ccx resume
+repo: D:/saas-workspace/products/roompilot-ai
+session_source: cache
+best_session: 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+started_at: 2026-03-27T19:06:46.513Z
+cwd: D:\saas-workspace\templates\saas-mvp-template
+workspace_repo: D:/saas-workspace/templates/saas-mvp-template
+attributed_repo: D:\saas-workspace\products\roompilot-ai
+goal: I was working on a project called roompilot-ai ...
+recent_sessions_in_repo: 2
+ELAPSED_MS=142</pre>
+          </div>
+          <div class="lesson-grid">
+            <div class="lesson">
+              <h3>The key win</h3>
+              <p>The session ran from a template workspace, but the tool still recovered the real product repo.</p>
+            </div>
+            <div class="lesson">
+              <h3>Mental model</h3>
+              <p><code>workspace_repo</code> answers “where did I run from?” while <code>attributed_repo</code> answers “what was I actually working on?”</p>
+            </div>
+            <div class="lesson">
+              <h3>Why this teaches you something</h3>
+              <p>Good continuity tools do not trust one raw path. They infer intent from multiple signals.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 4<br>Find</div>
+        <div class="step-card">
+          <div class="step-meta">
+            <div>
+              <span class="badge">What you do</span>
+              <strong>Search by topic, not by memory of ids</strong>
+              <p>This is how you recover a discussion like “where did we talk about prompt profiles?”</p>
+            </div>
+            <div>
+              <span class="badge">Measured</span>
+              <strong>120ms</strong>
+              <p>Search is also hot-path fast after indexing.</p>
+            </div>
+          </div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span>find prompt profiles</span>
+            </div>
+            <pre><span class="prompt">PS&gt;</span> ccx find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
+ccx find
+query: prompt profiles
+session_source: cache
+repo_filter: D:/saas-workspace/products/roompilot-ai
+results: 1
+- score=38 | terms=2 | 2026-03-24T11:14:14.547Z | 019d1f8d-698d-70d1-b07d-f099066d4d34
+  why: outcome matched 2 term(s)
+ELAPSED_MS=120</pre>
+          </div>
+          <div class="lesson-grid">
+            <div class="lesson">
+              <h3>What it feels like</h3>
+              <p>Like semantic grep over your old Codex work, but scoped to the repo you care about.</p>
+            </div>
+            <div class="lesson">
+              <h3>What the score tells you</h3>
+              <p>The tool is ranking results, not just returning weak substring matches.</p>
+            </div>
+            <div class="lesson">
+              <h3>What to remember</h3>
+              <p>Search becomes useful when the system has already normalized the archive into meaningful fields like goals and outcomes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 5<br>Compare</div>
+        <div class="step-card">
+          <div class="step-meta">
+            <div>
+              <span class="badge">What you do</span>
+              <strong>Ask whether two sessions are part of the same story</strong>
+              <p>This command helps when two chats look related and you want the relationship made explicit.</p>
+            </div>
+            <div>
+              <span class="badge">Measured</span>
+              <strong>144ms</strong>
+              <p>Still hot-path fast while doing more interpretation work.</p>
+            </div>
+          </div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span>compare sessions</span>
+            </div>
+            <pre><span class="prompt">PS&gt;</span> ccx compare 019d1f8d... 019d30b1...
+ccx compare
+relation: same attributed repo; session_b looks like the later continuation
+same_attributed_repo: true
+same_workspace_repo: true
+common_files: ... D:/saas-workspace/products/roompilot-ai/AGENTS.md | .../ARCHITECTURE.md | .../App.tsx ...
+only_in_b: .../backend/app/services/artifact_store.py | .../frontend/index.html | .../frontend/src/App.tsx ...
+common_mentioned_repos: D:\saas-workspace\products\roompilot-ai
+ELAPSED_MS=144</pre>
+          </div>
+          <div class="lesson-grid">
+            <div class="lesson">
+              <h3>What this really does</h3>
+              <p>It converts two opaque session ids into a continuity judgment: same story, later checkpoint, changed files.</p>
+            </div>
+            <div class="lesson">
+              <h3>What you learn</h3>
+              <p>You can see how the project evolved between chats without rereading both transcripts top to bottom.</p>
+            </div>
+            <div class="lesson">
+              <h3>Transferable pattern</h3>
+              <p>Comparisons become powerful when you show overlap, delta, and relation inference together.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 6<br>Pack</div>
+        <div class="step-card">
+          <div class="step-meta">
+            <div>
+              <span class="badge">What you do</span>
+              <strong>Generate the next-session handoff</strong>
+              <p>This is the bridge from continuity retrieval into actual next-step work.</p>
+            </div>
+            <div>
+              <span class="badge">Measured</span>
+              <strong>132ms</strong>
+              <p>Fast in the final scripted run once the cache and binary were aligned.</p>
+            </div>
+          </div>
+          <div class="terminal">
+            <div class="terminal-head">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span>pack roompilot-ai</span>
+            </div>
+            <pre><span class="prompt">PS&gt;</span> ccx pack --repo D:\saas-workspace\products\roompilot-ai
+ccx pack
+source_session: 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+context_anchor_session: 019d1f8d-698d-70d1-b07d-f099066d4d34
+
+BEGIN_CCX_RESUME_PACK
+Repo: D:\saas-workspace\products\roompilot-ai
+Latest session: 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+Context anchor session: 019d1f8d-698d-70d1-b07d-f099066d4d34
+Files that mattered:
+- .../backend/app/api/routes/ai.py
+- .../backend/app/core/config.py
+- .../backend/app/services/gemini_service.py
+- .../backend/app/services/prompts.py
+- .../frontend/index.html
+END_CCX_RESUME_PACK
+ELAPSED_MS=132</pre>
+          </div>
+          <div class="lesson-grid">
+            <div class="lesson">
+              <h3>What it feels like</h3>
+              <p>A compact, paste-ready project memory packet for the next Codex chat.</p>
+            </div>
+            <div class="lesson">
+              <h3>Why two sessions matter</h3>
+              <p>The latest checkpoint is not always the richest explanation, so the tool separates “most recent” from “best anchor.”</p>
+            </div>
+            <div class="lesson">
+              <h3>What to remember</h3>
+              <p>Good resumability is not just history retrieval. It is history compression.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>What You Should Learn From This Product</h2>
+      <p>If you want to build products like this yourself, these are the design lessons worth carrying forward.</p>
+    </div>
+
+    <div class="teaching">
+      <div class="teach-card">
+        <div class="eyebrow">Product Lesson</div>
+        <h3>The wedge is orientation, not search</h3>
+        <ul>
+          <li>Raw chat search is useful, but it is not enough.</li>
+          <li>The real pain is “what happened, where, and why?” after a break.</li>
+          <li>This product wins when it restores orientation faster than the user could reconstruct it manually.</li>
+        </ul>
+      </div>
+      <div class="teach-card">
+        <div class="eyebrow">Systems Lesson</div>
+        <h3>Cold path and hot path should be different</h3>
+        <ul>
+          <li>Cold path: scan, parse, normalize, cache.</li>
+          <li>Hot path: retrieve, rank, compare, compress.</li>
+          <li>That split is why a local-first tool can feel both trustworthy and fast.</li>
+        </ul>
+      </div>
+      <div class="teach-card">
+        <div class="eyebrow">Data Lesson</div>
+        <h3>Normalization creates leverage</h3>
+        <ul>
+          <li>Once you extract goals, outcomes, repo evidence, and files, the same dataset powers multiple commands.</li>
+          <li>That is why the product stays small while still feeling capable.</li>
+        </ul>
+      </div>
+      <div class="teach-card">
+        <div class="eyebrow">UX Lesson</div>
+        <h3>The product still lacks a strong visual surface</h3>
+        <ul>
+          <li>Right now, the logic is stronger than the interface.</li>
+          <li>A TUI or small local web UI would make the experience easier to grasp instantly.</li>
+          <li>That is the next major leap if you want the product to feel obvious to new users.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

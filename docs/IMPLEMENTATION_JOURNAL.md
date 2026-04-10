@@ -1,6 +1,6 @@
 # Codex Continuity OS Implementation Journal
 
-Last updated: 2026-04-05
+Last updated: 2026-04-10
 
 ## Purpose
 
@@ -836,6 +836,524 @@ Confirmed:
 The code was already real, but this step is what turned it into an actual launchable product repo instead of a local build workspace.
 - fixture-driven parser tests
 - launch-style end-to-end regression pass
+
+## Step 16 - Added A Full Product Walkthrough And Re-Verified The Live Examples
+
+### Why
+
+The existing docs explained the architecture and launch state, but they still left a gap for the most important operator question:
+
+- what exactly is this product, how does it work, and how do I use it end to end?
+
+That needed one canonical document that combines:
+
+- product explanation
+- data-flow explanation
+- command-level usage
+- real example outputs
+
+### What changed
+
+Added:
+
+- `docs/PROJECT_WALKTHROUGH.md`
+
+Updated:
+
+- `README.md`
+
+### What functionality this added
+
+No new runtime capability was added to the binary itself.
+
+What changed is operator usability:
+
+- there is now a single file that explains the whole product
+- the README now points directly to that walkthrough
+- a new user can understand the system without reverse-engineering the source
+
+### Important verification note
+
+During this pass, a real environment issue surfaced again:
+
+- `target\debug\ccx.exe` can be stale or locked on this Windows machine during active iteration
+
+So the walkthrough examples were verified from a fresh isolated build target instead:
+
+```powershell
+$toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
+$env:PATH="$toolchain;" + $env:PATH
+$env:CARGO_TARGET_DIR='C:\Users\AKR\.codex\tmp\ccx-target-live'
+cargo.exe build --bin ccx
+```
+
+Verified commands from that fresh build:
+
+```powershell
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe resume --repo D:\saas-workspace\products\roompilot-ai
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe compare 019d1f8d-698d-70d1-b07d-f099066d4d34 019d30b1-1b6f-77a3-8c4b-cfcfe2d10973
+C:\Users\AKR\.codex\tmp\ccx-target-live\debug\ccx.exe pack --repo D:\saas-workspace\products\roompilot-ai
+```
+
+Observed behavior:
+
+- `resume` recovered the March 27, 2026 `roompilot-ai` session from a template workspace
+- `find "prompt profiles"` returned the March 24, 2026 `roompilot-ai` session
+- `compare` correctly inferred that the March 27 session is the later continuation of the March 24 session
+- `pack` generated the expected resume block with the right latest session and context anchor
+
+## Step 17 - Added A Repeatable Live Demo Script And Measured The Full Flow
+
+### Why
+
+One-off verification is useful for development, but launch confidence is stronger when the repo contains a repeatable demo path that anyone can run without reconstructing the command sequence manually.
+
+### What changed
+
+Added:
+
+- `scripts/live-demo.ps1`
+
+Updated:
+
+- `README.md`
+- `docs/LAUNCH_READINESS.md`
+
+### What functionality this added
+
+No new continuity logic was added to the CLI itself.
+
+What was added is operator tooling:
+
+- one command now rebuilds an isolated binary
+- refreshes the cache
+- runs the `projects`, `resume`, `find`, `compare`, and `pack` demo flow
+- prints per-step timings
+
+### Verification
+
+Ran:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
+```
+
+Observed result:
+
+- build succeeded from the isolated target
+- `index` rebuilt successfully
+- `sessions_indexed: 322`
+- full scripted demo completed successfully
+
+Observed timings:
+
+- `index`: `57352ms`
+- `projects`: `103ms`
+- `resume`: `142ms`
+- `find`: `120ms`
+- `compare`: `144ms`
+- `pack`: `132ms`
+
+### Why this matters
+
+This produces a more honest launch story:
+
+- the first cold-cache pass is materially slower
+- the hot-path commands are fast once the cache exists
+
+That is a good product shape for the current CLI launch, and now the repo contains a concrete way to demonstrate it.
+
+## Step 18 - Added The First Real Interface Layer
+
+### Why
+
+The product logic was stronger than the product feel.
+
+The old command surface worked, but it still felt like a collection of utilities rather than one coherent tool. That is a UX problem, not a parsing problem.
+
+### What changed
+
+Added:
+
+- `src/tui.rs`
+
+Updated:
+
+- `Cargo.toml`
+- `src/main.rs`
+- `README.md`
+- `docs/LAUNCH_READINESS.md`
+- `docs/PROJECT_WALKTHROUGH.md`
+
+### What functionality this added
+
+The product now has a first-class interactive entrypoint:
+
+- `ccx dashboard [--repo <path>]`
+
+The dashboard provides:
+
+- project list
+- session list for the selected project
+- rich detail pane
+- live search mode inside the selected project
+- keyboard-driven reindexing
+
+### Verification
+
+Built successfully from an isolated target with the new `ratatui` and `crossterm` dependencies.
+
+Verified on the real archive:
+
+- dashboard launched successfully
+- `roompilot-ai` preselection worked
+- initial render showed the correct project and latest session
+- search overlay opened and filtered the session pane
+- terminal restored cleanly after exit
+
+### Why this matters
+
+This is the first step where the product stops depending entirely on documentation to explain itself.
+
+It is still a terminal product, but it now has:
+
+- a front door
+- a visual hierarchy
+- a coherent interaction model
+
+That moves it materially closer to feeling like a product rather than a smart internal script.
+
+## Step 19 - Added The Product Operating System Docs
+
+### Why
+
+The repo had many explanatory docs, but it still lacked the core planning and execution artifacts that make software projects easier to run:
+
+- a canonical PRD
+- a canonical task tracker
+- user flow documentation
+
+Without those, product direction was still partly trapped in chat context and scattered notes.
+
+### What changed
+
+Added:
+
+- `docs/PRD.md`
+- `docs/TASK_TRACKER.md`
+- `docs/USER_FLOWS.md`
+
+Updated:
+
+- `README.md`
+- `CONTINUITY.md`
+
+### What functionality this added
+
+No runtime product behavior changed.
+
+What changed is project operability:
+
+- the repo now has a real PRD instead of only a compact spec
+- there is one canonical task tracker with `now`, `next`, `later`, and `done`
+- the key user journeys are documented with diagrams
+- the current recommended product sequence is now explicit and durable
+
+### Why this matters
+
+This fixes a different class of product weakness.
+
+The dashboard addresses the user-facing interface weakness.
+These docs address the execution weakness:
+
+- what are we building?
+- what matters now?
+- what comes next?
+- what is the canonical user journey?
+
+That makes the repo more like a real product workspace and less like a build artifact dump.
+
+## Step 20 - Replaced The Naive Summary Layer With A Deterministic Session Digest
+
+### Why
+
+At this point the biggest product weakness was no longer raw parsing or missing commands. It was that the continuity surface still depended too much on:
+
+- the first user message
+- the last assistant message
+
+That worked sometimes, but it broke whenever the real recap lived in the middle of the session, the last reply was procedural, or the most important signal was verification or next-step guidance rather than a raw outcome sentence.
+
+The product needed a stronger continuity layer without introducing a remote model dependency.
+
+### What changed
+
+Expanded the normalized session model to include:
+
+- `summary`
+- `verification_notes`
+- `next_step`
+
+Built a deterministic digest pass in the scanner that now:
+
+- collects sanitized user and assistant messages across the parsed session
+- prefers recap-style assistant messages as the primary session summary
+- extracts verification-like clauses into `verification_notes`
+- extracts forward-looking clauses into `next_step`
+
+Updated:
+
+- `src/model.rs`
+- `src/scanner.rs`
+- `src/main.rs`
+- `src/tui.rs`
+
+The cache format was also versioned forward from `CCX1` to `CCX2` so the new fields survive index rebuilds and hot-path reads.
+
+### What functionality this added
+
+This changed the product in operator-visible ways:
+
+- `resume` now shows:
+  - goal
+  - continuity summary
+  - verification notes
+  - next-step hint
+- `find` now surfaces the extracted summary instead of only goal/outcome fragments
+- `compare` now shows summary and verification context for both sessions
+- `pack` now emits a richer resume block with summary, verification notes, and next-step guidance
+- the dashboard detail pane now shows:
+  - summary plus verification
+  - extracted next step
+
+### Verification
+
+Automated:
+
+- `cargo test`
+- `11 passed`, `0 failed`
+
+New tests added for:
+
+- recap-style summary selection
+- verification and next-step extraction
+
+Live archive verification against `roompilot-ai`:
+
+- `ccx index` rebuilt the `CCX2` cache successfully and indexed `325` sessions
+- `ccx resume --repo D:\saas-workspace\products\roompilot-ai` recovered the correct March 27, 2026 session and showed the new summary / verification / next-step fields
+- `ccx find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai` still found the March 24, 2026 session and now exposed the stronger summary field
+- `ccx pack --repo D:\saas-workspace\products\roompilot-ai` emitted the richer continuity block with verification notes and next-step guidance
+- `ccx dashboard --repo D:\saas-workspace\products\roompilot-ai` rendered the new summary-and-verification panel and exited cleanly
+
+### Why this matters
+
+This is the first step where the product stops pretending that "first message + last message" is enough continuity.
+
+It is still not full semantic summarization. It is still heuristic.
+
+But it is now much closer to the actual job of the product:
+
+- tell me what happened
+- tell me what was verified
+- tell me what to do next
+
+That makes the dashboard and resume surfaces feel more like a continuity product and less like a thin wrapper over transcript fragments.
+
+## Step 21 - Made The Dashboard Explain Why A Session Was Selected
+
+### Why
+
+Even after the summary upgrade, the dashboard still made the user do interpretation work.
+
+It showed:
+
+- a selected session
+- a stronger summary
+- a better next-step hint
+
+But it still did not answer a basic trust question clearly enough:
+
+- why am I looking at this session?
+
+That is the kind of gap that makes a product feel clever-but-naive instead of confident.
+
+### What changed
+
+Changed the dashboard session list from a plain `Vec<SessionSummary>` to a richer visible-session model that carries both:
+
+- the session
+- an explicit selection reason
+
+For project views, the dashboard now generates reasons like:
+
+- most recent session in this project
+- richest continuity summary in this project
+- has extracted next-step guidance
+
+For search views, it now carries through the search-match explanation so the operator can see why a filtered result surfaced.
+
+Updated:
+
+- `src/tui.rs`
+
+### What functionality this added
+
+The dashboard snapshot panel can now explain the selected row directly instead of relying on the user to infer it from timestamps and summaries.
+
+That means the product now communicates:
+
+- what happened
+- what was verified
+- what to do next
+- why this session is the one you should care about
+
+### Verification
+
+Automated:
+
+- `cargo test`
+- `12 passed`, `0 failed`
+
+New test added for:
+
+- project-session reason generation
+
+Live verification:
+
+- `ccx dashboard --repo D:\saas-workspace\products\roompilot-ai` launched successfully after the change
+- the dashboard still rendered the real `roompilot-ai` continuity board
+- the new selection-reason line was present in the snapshot panel state
+- terminal restore still worked cleanly on exit
+
+### Why this matters
+
+This is a product-trust improvement, not just a code tidy-up.
+
+Good continuity tools do not only surface context. They also explain why the surfaced context is the right context.
+
+## Step 22 - Added A First-Run Onboarding Layer To The Dashboard
+
+### Why
+
+Even with better summaries and explicit selection reasoning, the first-run experience still assumed too much operator intuition.
+
+That meant a new user could still open the dashboard and think:
+
+- what am I supposed to do first?
+- what is the intended flow?
+- which key matters right now?
+
+The product needed to teach its own default workflow.
+
+### What changed
+
+Added an onboarding/help overlay directly inside the dashboard:
+
+- opens automatically on first run
+- can be reopened any time with `?`
+- explains the purpose of the board
+- shows the intended operator flow
+- shows the key keyboard controls
+
+Dismissal is persisted under the product’s own continuity home so this onboarding is local to Codex Continuity OS, not mixed into Codex internals.
+
+Updated:
+
+- `src/tui.rs`
+
+### What functionality this added
+
+The dashboard now has a real first-run teaching layer.
+
+That means a new operator can learn:
+
+- what the product is for
+- where to start
+- how to navigate
+- what to read first
+- how to hand context into the next Codex chat
+
+without leaving the product to read docs first.
+
+### Verification
+
+Automated:
+
+- `cargo test`
+- `12 passed`, `0 failed`
+
+Live verification:
+
+- launched the dashboard with a fresh `CODEX_CONTINUITY_HOME`
+- confirmed the onboarding overlay rendered on first run
+- dismissed it with `Enter`
+- confirmed dismissal persisted via the sentinel file under the temporary continuity home
+- exited cleanly and restored the terminal
+
+### Why this matters
+
+This is a real product-polish step, not just a documentation step.
+
+A launchable tool should explain itself at the point of use, especially on first contact.
+
+## Step 23 - Added A Repeatable Windows Release Packaging Path
+
+### Why
+
+At this stage the biggest launch weakness was not the core product. It was distribution friction.
+
+The product still depended too much on:
+
+- local Rust toolchain availability
+- manual build steps
+- source-first installation
+
+That is fine for development, but weak for a public launch.
+
+### What changed
+
+Added:
+
+- `scripts/package-release.ps1`
+
+Updated:
+
+- `.gitignore`
+- `README.md`
+- `docs/LAUNCH_READINESS.md`
+
+The packaging script now:
+
+- builds the release binary
+- stages `ccx.exe` plus `README.md`, `LICENSE`, and a short `QUICKSTART.txt`
+- creates a versioned Windows zip archive under `dist/`
+- writes a SHA256 checksum file
+
+### What functionality this added
+
+The product now has a repeatable release artifact path for Windows:
+
+- `dist\ccx-windows-x86_64-v0.1.0.zip`
+- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+
+That is enough to support a real public release even before cross-platform packaging exists.
+
+### Verification
+
+Ran:
+
+- `powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0`
+
+Confirmed creation of:
+
+- `dist\ccx-windows-x86_64-v0.1.0.zip`
+- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+
+### Why this matters
+
+Products do not feel launched if the only answer to "how do I try it?" is "clone the repo and figure out the toolchain."
 
 ## Overnight Plan From Here
 
