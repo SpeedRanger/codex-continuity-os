@@ -172,6 +172,9 @@ Near-term improvements:
 
 ## Docs
 
+- [docs/PRD.md](./docs/PRD.md): canonical product requirements document
+- [docs/TASK_TRACKER.md](./docs/TASK_TRACKER.md): canonical project task list and priorities
+- [docs/USER_FLOWS.md](./docs/USER_FLOWS.md): key user journeys and workflow diagrams
 - [PROJECT_SPEC.md](./PROJECT_SPEC.md): compact product definition
 - [CONTINUITY.md](./CONTINUITY.md): current project state
 - [docs/LIVE_DEMO_VISUAL.html](./docs/LIVE_DEMO_VISUAL.html): visual operator walkthrough of the live demo flow
