@@ -1233,6 +1233,128 @@ This is a product-trust improvement, not just a code tidy-up.
 
 Good continuity tools do not only surface context. They also explain why the surfaced context is the right context.
 
+## Step 22 - Added A First-Run Onboarding Layer To The Dashboard
+
+### Why
+
+Even with better summaries and explicit selection reasoning, the first-run experience still assumed too much operator intuition.
+
+That meant a new user could still open the dashboard and think:
+
+- what am I supposed to do first?
+- what is the intended flow?
+- which key matters right now?
+
+The product needed to teach its own default workflow.
+
+### What changed
+
+Added an onboarding/help overlay directly inside the dashboard:
+
+- opens automatically on first run
+- can be reopened any time with `?`
+- explains the purpose of the board
+- shows the intended operator flow
+- shows the key keyboard controls
+
+Dismissal is persisted under the product’s own continuity home so this onboarding is local to Codex Continuity OS, not mixed into Codex internals.
+
+Updated:
+
+- `src/tui.rs`
+
+### What functionality this added
+
+The dashboard now has a real first-run teaching layer.
+
+That means a new operator can learn:
+
+- what the product is for
+- where to start
+- how to navigate
+- what to read first
+- how to hand context into the next Codex chat
+
+without leaving the product to read docs first.
+
+### Verification
+
+Automated:
+
+- `cargo test`
+- `12 passed`, `0 failed`
+
+Live verification:
+
+- launched the dashboard with a fresh `CODEX_CONTINUITY_HOME`
+- confirmed the onboarding overlay rendered on first run
+- dismissed it with `Enter`
+- confirmed dismissal persisted via the sentinel file under the temporary continuity home
+- exited cleanly and restored the terminal
+
+### Why this matters
+
+This is a real product-polish step, not just a documentation step.
+
+A launchable tool should explain itself at the point of use, especially on first contact.
+
+## Step 23 - Added A Repeatable Windows Release Packaging Path
+
+### Why
+
+At this stage the biggest launch weakness was not the core product. It was distribution friction.
+
+The product still depended too much on:
+
+- local Rust toolchain availability
+- manual build steps
+- source-first installation
+
+That is fine for development, but weak for a public launch.
+
+### What changed
+
+Added:
+
+- `scripts/package-release.ps1`
+
+Updated:
+
+- `.gitignore`
+- `README.md`
+- `docs/LAUNCH_READINESS.md`
+
+The packaging script now:
+
+- builds the release binary
+- stages `ccx.exe` plus `README.md`, `LICENSE`, and a short `QUICKSTART.txt`
+- creates a versioned Windows zip archive under `dist/`
+- writes a SHA256 checksum file
+
+### What functionality this added
+
+The product now has a repeatable release artifact path for Windows:
+
+- `dist\ccx-windows-x86_64-v0.1.0.zip`
+- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+
+That is enough to support a real public release even before cross-platform packaging exists.
+
+### Verification
+
+Ran:
+
+- `powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0`
+
+Confirmed creation of:
+
+- `dist\ccx-windows-x86_64-v0.1.0.zip`
+- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+
+### Why this matters
+
+Products do not feel launched if the only answer to "how do I try it?" is "clone the repo and figure out the toolchain."
+
 ## Overnight Plan From Here
 
 1. Add launch-scope documentation and keep updating this journal after each substantive implementation step.

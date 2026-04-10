@@ -1,4 +1,4 @@
-use std::{io, path::Path, time::Duration};
+use std::{fs, io, path::Path, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result};
 use crossterm::{
@@ -113,6 +113,7 @@ struct DashboardApp {
     source: SessionSource,
     search_query: String,
     status: String,
+    show_onboarding: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -154,6 +155,7 @@ impl DashboardApp {
             search_query: String::new(),
             status: "Continuity board ready. Use Tab to move, / to search, i to reindex."
                 .to_owned(),
+            show_onboarding: !dashboard_onboarding_seen(),
         };
         app.refresh_visible_sessions();
         app
@@ -200,6 +202,22 @@ impl DashboardApp {
     }
 
     fn handle_normal_key(&mut self, key: KeyEvent) -> Result<bool> {
+        if self.show_onboarding {
+            match key.code {
+                KeyCode::Char('q') => return Ok(true),
+                KeyCode::Enter | KeyCode::Esc | KeyCode::Char('?') => {
+                    self.show_onboarding = false;
+                    mark_dashboard_onboarding_seen();
+                    self.status =
+                        "Welcome panel dismissed. Start in Projects, then inspect the latest session."
+                            .to_owned();
+                }
+                _ => {}
+            }
+
+            return Ok(false);
+        }
+
         match key.code {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Tab => {
@@ -220,6 +238,10 @@ impl DashboardApp {
             KeyCode::Char('/') => {
                 self.input_mode = InputMode::Search;
                 self.status = "Search mode. Type to filter current project sessions.".to_owned();
+            }
+            KeyCode::Char('?') => {
+                self.show_onboarding = true;
+                self.status = "Showing continuity guide.".to_owned();
             }
             KeyCode::Char('i') => {
                 self.status = "Reindexing archive...".to_owned();
@@ -384,6 +406,10 @@ impl DashboardApp {
         self.render_header(frame, layout[0]);
         self.render_body(frame, layout[1]);
         self.render_footer(frame, layout[2]);
+
+        if self.show_onboarding {
+            self.render_onboarding_overlay(frame, centered_rect(82, 16, area));
+        }
 
         if self.input_mode == InputMode::Search {
             self.render_search_overlay(frame, centered_rect(76, 7, area));
@@ -886,6 +912,8 @@ impl DashboardApp {
                 footer_sep(),
                 footer_key("/", "search"),
                 footer_sep(),
+                footer_key("?", "help"),
+                footer_sep(),
                 footer_key("Esc", "clear search"),
                 footer_sep(),
                 footer_key("i", "reindex"),
@@ -949,6 +977,71 @@ impl DashboardApp {
                 ]))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(RUST))
+                .style(Style::default().bg(PANEL_ALT)),
+        )
+        .wrap(Wrap { trim: true });
+        frame.render_widget(overlay, area);
+    }
+
+    fn render_onboarding_overlay(&self, frame: &mut ratatui::Frame<'_>, area: Rect) {
+        frame.render_widget(Clear, area);
+        let selected_repo = self
+            .selected_project()
+            .map(|project| shorten_path(&project.repo_root, 64))
+            .unwrap_or_else(|| "No repo selected yet.".to_owned());
+        let overlay = Paragraph::new(Text::from(vec![
+            Line::from(Span::styled(
+                "This board helps you recover context across Codex chats without reopening old transcripts by hand.",
+                Style::default().fg(INK).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Start here: ", Style::default().fg(BRASS).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "pick a project, inspect the latest session, then read Summary + Verification and What To Do Next.",
+                    Style::default().fg(MUTED),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("Current repo focus: ", Style::default().fg(BRASS).add_modifier(Modifier::BOLD)),
+                Span::styled(selected_repo, Style::default().fg(INK)),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Core keys",
+                Style::default().fg(OLIVE).add_modifier(Modifier::BOLD),
+            )),
+            Line::from("Tab switch panes  •  j/k move  •  / search inside selected project"),
+            Line::from("i rebuild index  •  ? reopen this help  •  q quit"),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Operator flow",
+                Style::default().fg(OLIVE).add_modifier(Modifier::BOLD),
+            )),
+            Line::from("1. Start at the project list."),
+            Line::from("2. Open the newest or richest session."),
+            Line::from("3. Use the right pane to answer: what happened, what was verified, what next."),
+            Line::from("4. If needed, run `ccx pack --repo <path>` before opening the next Codex chat."),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Press Enter, Esc, or ? to close this panel.",
+                Style::default().fg(MUTED),
+            )),
+        ]))
+        .block(
+            Block::default()
+                .title(Line::from(vec![
+                    Span::styled(
+                        " Welcome ",
+                        Style::default()
+                            .fg(BG)
+                            .bg(BRASS)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(" first-run continuity guide ", Style::default().fg(MUTED)),
+                ]))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(BRASS))
                 .style(Style::default().bg(PANEL_ALT)),
         )
         .wrap(Wrap { trim: true });
@@ -1052,6 +1145,39 @@ fn centered_rect(percent_x: u16, height: u16, area: Rect) -> Rect {
         ])
         .split(vertical[1]);
     horizontal[1]
+}
+
+fn dashboard_onboarding_seen() -> bool {
+    dashboard_onboarding_seen_path().is_file()
+}
+
+fn mark_dashboard_onboarding_seen() {
+    let path = dashboard_onboarding_seen_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(path, b"seen\n");
+}
+
+fn dashboard_onboarding_seen_path() -> PathBuf {
+    continuity_state_dir().join("dashboard_onboarding_seen")
+}
+
+fn continuity_state_dir() -> PathBuf {
+    continuity_home_dir().join("state")
+}
+
+fn continuity_home_dir() -> PathBuf {
+    std::env::var_os("CODEX_CONTINUITY_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("USERPROFILE")
+                .map(|value| PathBuf::from(value).join(".codex-continuity"))
+        })
+        .or_else(|| {
+            std::env::var_os("HOME").map(|value| PathBuf::from(value).join(".codex-continuity"))
+        })
+        .unwrap_or_else(|| PathBuf::from(".codex-continuity"))
 }
 
 fn footer_key(key: &str, label: &str) -> Span<'static> {

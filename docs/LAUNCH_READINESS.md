@@ -4,7 +4,7 @@ Last updated: 2026-04-10
 
 ## Current Status
 
-Codex Continuity OS is now launchable as a source-first CLI/TUI product.
+Codex Continuity OS is now launchable as a CLI/TUI product with a repeatable Windows packaging path.
 
 Public repository:
 
@@ -15,6 +15,7 @@ The current build has:
 - cache-backed local session indexing
 - deterministic session digest extraction
 - interactive continuity dashboard
+- first-run onboarding/help overlay in the dashboard
 - project grouping
 - repo resume
 - ranked session search
@@ -44,6 +45,25 @@ $toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
 $env:PATH="$toolchain;" + $env:PATH
 cargo.exe build --bin ccx
 ```
+
+## Windows Release Packaging
+
+To build a Windows release archive locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0
+```
+
+This creates:
+
+- `dist\ccx-windows-x86_64-v0.1.0.zip`
+- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+
+Verified on 2026-04-10:
+
+- local package build succeeded
+- zip artifact created successfully
+- SHA256 checksum file created successfully
 
 ## First Run
 
@@ -83,6 +103,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\live-demo.ps1
 Manual verification completed against the live Codex archive:
 
 - `dashboard --repo roompilot-ai` opened a real continuity board with the repo preselected
+- forced-first-run dashboard opened the onboarding overlay and persisted dismissal correctly
 - dashboard detail pane showed extracted summary, verification notes, and next-step hint for `roompilot-ai`
 - dashboard snapshot now includes explicit why-this-session reasoning for the selected row
 - dashboard search mode filtered the session pane to the `prompt profiles` result
@@ -117,7 +138,8 @@ Automated verification:
 - file extraction is heuristic, not AST- or git-diff-backed
 - session summarization is deterministic heuristic extraction, not full semantic LLM summarization
 - the dashboard currently optimizes for keyboard-driven operators, not first-time casual users
-- there is no installer/package yet; current launch shape is repo + build instructions
+- onboarding exists, but the product is still terminal-first and assumes a builder/operator audience
+- there is no cross-platform installer yet; current distribution path is source repo plus Windows release packaging
 
 ## Recommended Launch Framing
 

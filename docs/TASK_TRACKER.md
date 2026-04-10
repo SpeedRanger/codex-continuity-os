@@ -15,7 +15,7 @@ Status key:
 
 - `[now]` Refine the dashboard UX from usable to obvious
   - Why: the new TUI is the front door, so it must carry more of the product story by itself
-  - Success: better hierarchy, clearer selection states, stronger empty states, more legible context pane, and stronger first-run clarity
+  - Success: better hierarchy, clearer selection states, stronger empty states, clearer first-run flow, and a more compact high-signal layout
 
 - `[now]` Maintain a proper product operating system in-repo
   - Why: planning is currently under-documented relative to the product ambition
@@ -23,8 +23,9 @@ Status key:
 
 ## Next
 
-- `[next]` Add a proper first-run onboarding view for `dashboard`
-- `[next]` Add installation/distribution docs for a cleaner launch story
+- `[next]` Publish the packaged Windows release artifact on GitHub
+- `[next]` Decide whether packaged binaries are enough or whether the next interface leap should be a local web UI
+- `[next]` Tighten dashboard empty states and low-width rendering further
 - `[next]` Decide whether the next interface leap is richer TUI or local web UI
 
 ## Later
@@ -50,13 +51,15 @@ Status key:
 - `[done]` Deterministic session digest added with summary, verification notes, and next-step extraction
 - `[done]` Dashboard detail pane upgraded to expose continuity summary, verification, and extracted next step
 - `[done]` Dashboard now explains why the selected session matters with explicit selection reasoning
+- `[done]` Dashboard now includes a first-run onboarding/help overlay and persisted dismissal state
+- `[done]` Repeatable Windows release packaging path added and verified locally
 
 ## Current Recommendation
 
 The best next product move is:
 
-1. tighten dashboard polish around the stronger summary layer
-2. improve first-run onboarding and empty-state clarity in the interface
+1. tighten packaging and distribution so launch friction drops
+2. keep improving dashboard layout and empty-state clarity
 3. only then decide whether to leap to a local web UI
 
-That order matters because the summary layer is now materially stronger, so the leverage has shifted to how clearly the interface explains and trusts those summaries.
+That order matters because the core continuity workflow now works end to end. The highest remaining leverage is making the launch path and default experience feel simpler and more premium.

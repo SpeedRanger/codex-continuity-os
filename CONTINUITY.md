@@ -26,6 +26,8 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 - `ccx dashboard` now acts as the interactive front door for the product
 - dashboard detail now exposes summary plus verification and an extracted next-step panel
 - dashboard session selection now includes explicit why-this-session reasoning
+- dashboard now includes a persisted first-run onboarding/help overlay via `?`
+- repeatable Windows release packaging now exists via `scripts/package-release.ps1`
 - automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
 - public GitHub repo now exists at `https://github.com/SpeedRanger/codex-continuity-os`
 - canonical product docs now exist for PRD, task tracking, and user flows
@@ -35,12 +37,12 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 
 ## Last Change
 
-Added explicit why-this-session reasoning to the dashboard so the selected session is explained, not just displayed.
+Added a repeatable Windows release packaging path and produced the first versioned zip/checksum artifacts under `dist/`.
 
 ## Next Actions
 
-1. Tighten the dashboard UX so the front door feels more polished and more obvious.
-2. Add a proper first-run onboarding and empty-state layer for the dashboard.
+1. Publish the packaged Windows release artifact on GitHub.
+2. Tighten the dashboard UX so the front door feels more polished and more obvious.
 3. Decide whether the next interface leap is a richer TUI pass or a local web UI.
 
 ## Blockers / Decisions
@@ -53,6 +55,7 @@ Added explicit why-this-session reasoning to the dashboard so the selected sessi
 - Cache freshness is explicit, not magical. `ccx index` is the refresh control.
 - Product docs are now materially better organized, but they still need to stay synchronized with implementation as the dashboard and summary model evolve.
 - The new summary layer is better than first-user / last-assistant extraction, but it is still deterministic heuristic extraction rather than true semantic summarization.
+- The dashboard onboarding state is stored under the product’s own continuity home, not in Codex state, which is the right boundary, but it is still minimal and local-only.
 
 ## Canonical Workspace
 

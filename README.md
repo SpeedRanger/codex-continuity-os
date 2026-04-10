@@ -36,7 +36,7 @@ This project exists to solve that gap.
 ## Command Surface
 
 - `ccx dashboard [--repo <path>]`
-  - open the interactive continuity board with projects, sessions, summaries, verification, and live search
+  - open the interactive continuity board with projects, sessions, summaries, verification, live search, and first-run help
 - `ccx sessions`
   - list recent known sessions with attributed repo and continuity summary
 - `ccx projects`
@@ -62,7 +62,7 @@ Codex Continuity OS can recover that relationship from the transcript and attrib
 
 ## Build
 
-This repo currently ships as a source-first CLI.
+This repo currently ships as a CLI/TUI project with source build instructions and a repeatable Windows packaging script.
 
 Clone it:
 
@@ -78,6 +78,17 @@ $toolchain='C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin'
 $env:PATH="$toolchain;" + $env:PATH
 cargo.exe build --bin ccx
 ```
+
+To package a Windows release archive:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0
+```
+
+That creates:
+
+- `dist\ccx-windows-x86_64-v0.1.0.zip`
+- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
 
 ## First Run
 
@@ -98,6 +109,15 @@ Preferred entrypoint:
 ```powershell
 target\debug\ccx.exe dashboard
 ```
+
+Inside the dashboard:
+
+- `?` opens the first-run help / onboarding panel
+- `Tab` switches panes
+- `j` / `k` move
+- `/` searches inside the selected project
+- `i` rebuilds the index
+- `q` quits
 
 ## Quick Demo
 
@@ -145,6 +165,7 @@ Verified against the real local Codex archive:
 - `dashboard --repo roompilot-ai` opened the continuity board with the correct repo preselected
 - the dashboard now shows extracted summary, verification, and next-step guidance for the selected session
 - the dashboard now explains why the selected session is important instead of leaving that inference to the user
+- the dashboard now includes a first-run guide so the product teaches the default workflow in-product
 - `projects` returned grouped project roots
 - `resume --repo roompilot-ai` recovered a template-based `roompilot-ai` session correctly
 - `find "prompt profiles" --repo roompilot-ai` recovered the expected historical session
@@ -161,7 +182,7 @@ Automated checks currently included:
 - cache refresh is explicit via `ccx index`
 - file extraction is heuristic, not git-diff-backed
 - repo attribution is heuristic, not a full project identity graph
-- there is no installer/package yet; current launch shape is source repo + build instructions
+- there is no cross-platform installer yet; current launch shape is source repo plus Windows release packaging
 
 ## Roadmap
 
@@ -183,6 +204,7 @@ Near-term improvements:
 - [CONTINUITY.md](./CONTINUITY.md): current project state
 - [docs/LIVE_DEMO_VISUAL.html](./docs/LIVE_DEMO_VISUAL.html): visual operator walkthrough of the live demo flow
 - [docs/PROJECT_WALKTHROUGH.md](./docs/PROJECT_WALKTHROUGH.md): full product explanation and real command walkthrough
+- [docs/FINAL_LAUNCH_COMPANION.md](./docs/FINAL_LAUNCH_COMPANION.md): turn-by-turn launch-completion log plus beginner tutorial
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): implementation walkthrough
 - [docs/LAUNCH_READINESS.md](./docs/LAUNCH_READINESS.md): launch-facing verification and known limits
 - [docs/CODEX_CONTINUITY_OS_MVP.md](./docs/CODEX_CONTINUITY_OS_MVP.md): original MVP spec
