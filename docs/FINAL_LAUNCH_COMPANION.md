@@ -196,9 +196,35 @@ Verification:
 - installed smoke-test binary ran `doctor` successfully
 - upgraded `ratatui` to `0.30.0` so the transitive `lru` dependency resolves to patched `lru 0.16.4`
 - `cargo tree -i lru` confirmed the patched dependency path
+- disabled unused `ratatui` default features so optional termwiz/phf/rand dependencies are no longer carried in the lockfile
+- `cargo tree --target all -i rand` confirmed `rand` is no longer in the dependency graph
 - `v0.1.1` package zip and checksum were created
 - expanded `v0.1.1` zip contained the expected files
 - expanded `ccx.exe --version` returned `ccx 0.1.1`
+
+### Turn 8 - Pruned Optional Dependency Risk And Prepared v0.1.2
+
+Problem:
+
+- upgrading `ratatui` to fix the low-severity transitive `lru` advisory pulled optional termwiz/phf/rand dependencies into the lockfile
+- Dependabot then reported a new low-severity `rand` advisory even though `rand` was not in the active runtime tree
+
+What changed:
+
+- changed the `ratatui` dependency to disable default features
+- enabled only the `crossterm` backend that CCX actually uses
+- bumped the package to `0.1.2`
+
+What new functionality appeared:
+
+- no user-facing command changed
+- the product is materially cleaner and safer because the lockfile no longer carries unused optional terminal-backend dependencies
+
+Verification:
+
+- `cargo fmt --check` passed
+- `cargo test` passed with `13` tests and `0` failures
+- `cargo tree --target all -i rand` no longer finds `rand`
 
 ## Part II - Beginner Tutorial
 

@@ -28,6 +28,7 @@ The current build has:
 - CodeQL workflow
 - Dependabot configuration
 - patched dependency floor for the previously reported low-severity transitive `lru` advisory
+- unused `ratatui` default features disabled so optional termwiz/phf/rand dependencies are not carried in the lockfile
 - security policy
 - milestone git history
 - implementation journal
@@ -55,13 +56,13 @@ cargo.exe build --bin ccx
 To build a Windows release archive locally:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.1
+powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.2
 ```
 
 This creates:
 
-- `dist\ccx-windows-x86_64-v0.1.1.zip`
-- `dist\ccx-windows-x86_64-v0.1.1.sha256.txt`
+- `dist\ccx-windows-x86_64-v0.1.2.zip`
+- `dist\ccx-windows-x86_64-v0.1.2.sha256.txt`
 
 Verified on 2026-04-10:
 
@@ -78,6 +79,16 @@ Verified on 2026-04-22 for `v0.1.1`:
 - expanded package contained `ccx.exe`, `README.md`, `LICENSE`, `QUICKSTART.md`, and `QUICKSTART.txt`
 - expanded `ccx.exe doctor` ran successfully
 - expanded `ccx.exe --version` returned `ccx 0.1.1`
+
+Verified on 2026-04-22 for `v0.1.2`:
+
+- package build succeeded
+- zip artifact created successfully
+- SHA256 checksum file created successfully
+- release zip expanded successfully
+- expanded package contained `ccx.exe`, `README.md`, `LICENSE`, `QUICKSTART.md`, and `QUICKSTART.txt`
+- expanded `ccx.exe --version` returned `ccx 0.1.2`
+- `cargo tree --target all -i rand` confirmed `rand` is absent from the dependency graph
 
 ## First Run
 
@@ -130,6 +141,7 @@ Manual verification completed against the live Codex archive:
 - temporary installer smoke test copied `ccx.exe` into `C:\Users\AKR\.codex\tmp\ccx-install-smoke` without modifying PATH
 - installed smoke-test binary ran `doctor` successfully
 - `cargo tree -i lru` confirmed `lru 0.16.4`
+- `cargo tree --target all -i rand` confirmed `rand` is no longer in the dependency graph
 - `projects` returned `28` grouped roots
 - `resume --repo roompilot-ai` recovered the correct March 27, 2026 session from a template workspace
 - `resume --repo roompilot-ai` now exposes summary, verification, and next-step fields directly
