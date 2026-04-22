@@ -1,6 +1,6 @@
 # Task Tracker
 
-Last updated: 2026-04-10
+Last updated: 2026-04-22
 
 This is the canonical project task list for Codex Continuity OS.
 
@@ -23,7 +23,6 @@ Status key:
 
 ## Next
 
-- `[next]` Publish the packaged Windows release artifact on GitHub
 - `[next]` Decide whether packaged binaries are enough or whether the next interface leap should be a local web UI
 - `[next]` Tighten dashboard empty states and low-width rendering further
 - `[next]` Decide whether the next interface leap is richer TUI or local web UI
@@ -53,13 +52,17 @@ Status key:
 - `[done]` Dashboard now explains why the selected session matters with explicit selection reasoning
 - `[done]` Dashboard now includes a first-run onboarding/help overlay and persisted dismissal state
 - `[done]` Repeatable Windows release packaging path added and verified locally
+- `[done]` Normal commands now auto-refresh the cache when the Codex archive changes
+- `[done]` `ccx doctor` added for local archive/cache diagnostics and suggested launch command
+- `[done]` Windows install helper added for installing `ccx.exe` into the continuity home
+- `[done]` Quickstart doc added for install, first run, daily use, and cache behavior
 
 ## Current Recommendation
 
 The best next product move is:
 
-1. tighten packaging and distribution so launch friction drops
-2. keep improving dashboard layout and empty-state clarity
-3. only then decide whether to leap to a local web UI
+1. keep improving dashboard layout and empty-state clarity
+2. add stronger file-evidence quality so summaries feel more trustworthy
+3. decide whether to leap to a local web UI after the TUI default flow stops feeling rough
 
 That order matters because the core continuity workflow now works end to end. The highest remaining leverage is making the launch path and default experience feel simpler and more premium.

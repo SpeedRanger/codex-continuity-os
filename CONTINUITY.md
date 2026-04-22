@@ -1,6 +1,6 @@
 # Continuity
 
-Last updated: 2026-04-10
+Last updated: 2026-04-22
 
 ## Current Goal
 
@@ -22,12 +22,16 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 - `ccx pack` now generates a pasteable resume pack with a latest checkpoint, context anchor, related sessions, and prioritized files
 - sessions now carry a deterministic continuity digest with summary, verification notes, and next-step hints
 - commands now use a cache under `C:/Users/AKR/.codex-continuity/cache/session_index.tsv`
-- `ccx index` explicitly rebuilds the cache and normal commands prefer cache reads
+- normal commands now reject stale cache headers and auto-refresh when the Codex archive changes
+- `ccx index` explicitly rebuilds the cache when a forced rebuild is needed
+- `ccx doctor` now reports archive/cache/current-repo wiring and suggested dashboard command
 - `ccx dashboard` now acts as the interactive front door for the product
 - dashboard detail now exposes summary plus verification and an extracted next-step panel
 - dashboard session selection now includes explicit why-this-session reasoning
 - dashboard now includes a persisted first-run onboarding/help overlay via `?`
 - repeatable Windows release packaging now exists via `scripts/package-release.ps1`
+- Windows install helper now exists via `scripts/install-windows.ps1`
+- quickstart doc now exists at `docs/QUICKSTART.md`
 - automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
 - public GitHub repo now exists at `https://github.com/SpeedRanger/codex-continuity-os`
 - canonical product docs now exist for PRD, task tracking, and user flows
@@ -37,13 +41,14 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 
 ## Last Change
 
-Added a repeatable Windows release packaging path and produced the first versioned zip/checksum artifacts under `dist/`.
+Added freshness-aware cache loading, `ccx doctor`, a Windows install helper, and a dedicated quickstart doc so normal use no longer depends on manually remembering `ccx index` or `target\debug\ccx.exe`.
 
 ## Next Actions
 
-1. Publish the packaged Windows release artifact on GitHub.
+1. Verify the auto-refresh, doctor, install, and packaging paths end to end.
 2. Tighten the dashboard UX so the front door feels more polished and more obvious.
-3. Decide whether the next interface leap is a richer TUI pass or a local web UI.
+3. Improve file-evidence ranking so packs and summaries feel more trustworthy.
+4. Decide whether the next interface leap is a richer TUI pass or a local web UI.
 
 ## Blockers / Decisions
 
@@ -52,7 +57,7 @@ Added a repeatable Windows release packaging path and produced the first version
   - `C:\Users\AKR\.rustup\toolchains\1.91.0-x86_64-pc-windows-msvc\bin`
 - On Windows, rebuilding `target\debug\ccx.exe` while a prior `ccx` process is still running can fail with `Access is denied (os error 5)`. A dedicated `CARGO_TARGET_DIR` is the safest verification path during active iteration.
 - Repo attribution is now stronger than pure `cwd` matching, but still heuristic. It relies on known product roots and transcript mentions, not a formal project identity graph yet.
-- Cache freshness is explicit, not magical. `ccx index` is the refresh control.
+- Cache refresh is now automatic when the archive fingerprint changes. The fingerprint is still lightweight: file count plus newest modified timestamp with a short active-session grace window, not a full content hash.
 - Product docs are now materially better organized, but they still need to stay synchronized with implementation as the dashboard and summary model evolve.
 - The new summary layer is better than first-user / last-assistant extraction, but it is still deterministic heuristic extraction rather than true semantic summarization.
 - The dashboard onboarding state is stored under the product’s own continuity home, not in Codex state, which is the right boundary, but it is still minimal and local-only.

@@ -387,6 +387,44 @@ fn run(cli: Cli) -> Result<()> {
             println!("status: rebuilt");
             println!("sessions_indexed: {}", sessions.len());
         }
+        Command::Doctor => {
+            let status = scanner::cache_status()?;
+            let current_repo = scanner::current_repo_root(None).ok();
+
+            println!("ccx doctor");
+            println!("codex_home: {}", status.codex_home.display());
+            println!("sessions_root: {}", status.sessions_root.display());
+            println!("continuity_home: {}", status.continuity_home.display());
+            println!("cache_file: {}", status.cache_file.display());
+            println!("cache_exists: {}", status.cache_exists);
+            println!("cache_fresh: {}", status.cache_fresh);
+            println!("archive_files: {}", status.archive_file_count);
+            println!(
+                "archive_latest_modified_epoch: {}",
+                status.archive_latest_modified_epoch
+            );
+            println!(
+                "cached_sessions: {}",
+                status
+                    .cached_session_count
+                    .map(|count| count.to_string())
+                    .unwrap_or_else(|| "not available or stale".to_owned())
+            );
+            if let Some(current_repo) = current_repo {
+                println!("current_repo: {}", current_repo.display());
+                println!(
+                    "suggested_dashboard: ccx dashboard --repo {}",
+                    current_repo.display()
+                );
+            }
+            if !status.cache_fresh {
+                println!(
+                    "status: cache missing or stale; the next command will refresh it automatically"
+                );
+            } else {
+                println!("status: ready");
+            }
+        }
     }
 
     Ok(())
@@ -452,6 +490,8 @@ enum Command {
     Projects,
     /// Refresh the local index.
     Index,
+    /// Check local Codex archive, cache freshness, and current repo wiring.
+    Doctor,
 }
 
 fn normalize_path(path: &std::path::Path) -> String {
@@ -461,6 +501,7 @@ fn normalize_path(path: &std::path::Path) -> String {
 fn session_source_label(source: scanner::SessionSource) -> &'static str {
     match source {
         scanner::SessionSource::Cache => "cache",
+        scanner::SessionSource::AutoRefresh => "auto-refresh",
         scanner::SessionSource::Scan => "scan",
     }
 }

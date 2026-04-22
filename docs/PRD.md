@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-Last updated: 2026-04-10
+Last updated: 2026-04-22
 
 ## Product
 
@@ -95,6 +95,7 @@ Open any repo and, within 30 seconds, understand:
 - archive scanning over `~/.codex/sessions`
 - repo attribution across indirect workspaces
 - cache-backed session index
+- freshness-aware cache loading with automatic refresh when the Codex archive changes
 - deterministic continuity digest with summary, verification notes, and next-step hinting
 - `projects`
 - `resume`
@@ -102,13 +103,14 @@ Open any repo and, within 30 seconds, understand:
 - `compare`
 - `pack`
 - interactive dashboard TUI
+- `doctor` command for archive/cache diagnostics
+- Windows install helper script
 
 ### In Scope Next
 
 - stronger product polish in the dashboard
-- explicit why-this-session-won reasoning in the dashboard
 - canonical product ops docs and task management
-- packaged distribution
+- stronger file evidence ranking
 
 ### Explicit Non-Goals
 
@@ -222,7 +224,7 @@ Success means the next Codex session can start with a compact, useful context bl
 - summarization is currently heuristic, not true whole-chat summarization
 - file extraction is heuristic
 - repo attribution is heuristic
-- packaging/install remains rough
+- packaging/install is still Windows-first
 - current dashboard is strong first cut, not final polish
 
 ## Success Metrics
@@ -243,7 +245,7 @@ For the next meaningful public push, the product should have:
 - reliable dashboard-first workflow
 - stronger summarization quality
 - canonical product docs
-- cleaner install/build path
+- cleaner install/build path with diagnostics
 - a product demo that makes the value obvious in under one minute
 
 ## Open Questions

@@ -1355,13 +1355,160 @@ Confirmed creation of:
 
 Products do not feel launched if the only answer to "how do I try it?" is "clone the repo and figure out the toolchain."
 
-## Overnight Plan From Here
+## Step 24 - Added Freshness-Aware Cache Loading
 
-1. Add launch-scope documentation and keep updating this journal after each substantive implementation step.
-2. Implement smarter repo attribution so sessions can map to downstream repos mentioned inside the chat.
-3. Implement `find`.
-4. Implement `compare`.
-5. Implement `pack`.
-6. Add persistent cache/index behavior.
-7. Add automated tests.
-8. Polish README, usage docs, and launch instructions.
+### Why
+
+The product was still too easy to accidentally run against stale history.
+
+Before this step, `load_sessions()` accepted any existing cache without validating it against the current Codex archive. That made the hot path fast, but it also meant a user could finish a new Codex chat and still see old continuity results until they remembered to run `ccx index`.
+
+### What changed
+
+Updated:
+
+- `src/scanner.rs`
+- `src/tui.rs`
+- `src/main.rs`
+
+The scanner now fingerprints `~/.codex/sessions` before trusting the cache.
+
+The fingerprint currently tracks:
+
+- number of `.jsonl` session files
+- newest modified timestamp among those files
+
+If the cache header does not match that fingerprint, normal commands automatically scan the archive and rewrite the cache.
+
+The matcher allows a short active-session timestamp grace window. This matters because Codex may keep writing to the currently active transcript while CCX is being tested, and that should not make every command rebuild the cache again seconds after a refresh.
+
+### What functionality this added
+
+Normal commands now self-heal stale cache state.
+
+That applies to:
+
+- `ccx dashboard`
+- `ccx projects`
+- `ccx sessions`
+- `ccx resume`
+- `ccx find`
+- `ccx compare`
+- `ccx pack`
+
+The command source label can now report:
+
+- `cache`
+- `scan`
+- `auto-refresh`
+
+### Verification
+
+Ran with the known-good Rust toolchain:
+
+- `cargo.exe test`
+- `cargo.exe run --bin ccx -- --help`
+
+Result:
+
+- `12 passed`, `0 failed`
+- command surface compiled and exposed the new `doctor` command added in the next step
+
+### Why this matters
+
+The product no longer asks users to manually manage freshness during normal use. `ccx index` still exists, but it is now a force-rebuild tool rather than a required daily habit.
+
+## Step 25 - Added `ccx doctor`
+
+### Why
+
+First-run setup needed a clear diagnostic command.
+
+Users should not have to know where Codex stores sessions, where CCX stores its cache, or whether the cache is fresh before they can trust the product.
+
+### What changed
+
+Added:
+
+- `ccx doctor`
+
+Updated:
+
+- `src/main.rs`
+- `src/scanner.rs`
+
+The scanner now exposes a `CacheStatus` structure with:
+
+- Codex home
+- session archive root
+- CCX continuity home
+- cache file path
+- cache existence
+- cache freshness
+- archive file count
+- newest archive modified timestamp
+- cached session count when available
+
+### What functionality this added
+
+`ccx doctor` now gives a one-shot setup and health report.
+
+It also prints the current repo, when detectable, plus a suggested dashboard command.
+
+### Why this matters
+
+This turns "is the tool wired correctly?" from a support/debugging problem into a normal user-facing command.
+
+## Step 26 - Added Windows Install Helper And Quickstart
+
+### Why
+
+The release had a packaging path, but local use still required people to remember `target\debug\ccx.exe` or manually manage binary locations.
+
+### What changed
+
+Added:
+
+- `scripts/install-windows.ps1`
+- `docs/QUICKSTART.md`
+
+Updated:
+
+- `README.md`
+- `scripts/package-release.ps1`
+- `docs/TASK_TRACKER.md`
+- `docs/PRD.md`
+- `docs/LAUNCH_READINESS.md`
+- `docs/FINAL_LAUNCH_COMPANION.md`
+
+The installer script copies `ccx.exe` into:
+
+- `%USERPROFILE%\.codex-continuity\bin`
+
+It can optionally add that directory to the user PATH:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-windows.ps1 -AddToUserPath
+```
+
+### What functionality this added
+
+The install path is now clearer:
+
+1. build or unzip `ccx.exe`
+2. install to the continuity home
+3. run `ccx doctor`
+4. run `ccx dashboard`
+
+Release packages now include `QUICKSTART.md` in addition to the short `QUICKSTART.txt`.
+
+### Why this matters
+
+This is a launch-polish step. A product that requires users to remember build target paths feels unfinished; a product with a diagnostic command and install helper feels much closer to usable.
+
+## Current Plan From Here
+
+1. Verify the new `doctor`, auto-refresh, install, and packaging paths.
+2. Improve dashboard empty states and low-width behavior.
+3. Improve file-evidence quality so generated packs and summaries feel more trustworthy.
+4. Decide whether the next major surface should be richer TUI or a local web UI.
