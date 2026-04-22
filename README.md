@@ -90,13 +90,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install-windows.ps1 -AddToUse
 To package a Windows release archive:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.1
+powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.2
 ```
 
 That creates:
 
-- `dist\ccx-windows-x86_64-v0.1.1.zip`
-- `dist\ccx-windows-x86_64-v0.1.1.sha256.txt`
+- `dist\ccx-windows-x86_64-v0.1.2.zip`
+- `dist\ccx-windows-x86_64-v0.1.2.sha256.txt`
 
 ## First Run
 

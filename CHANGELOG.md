@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.2 - 2026-04-22
+
+### Changed
+
+- Disabled unused `ratatui` default features and enabled only the `crossterm` backend.
+- Pruned optional termwiz/phf/rand dependencies from `Cargo.lock`.
+- Bumped package version to `0.1.2`.
+
+### Verified
+
+- `cargo fmt --check`.
+- `cargo test`: `13 passed`, `0 failed`.
+- `cargo tree --target all -i rand` no longer finds `rand` in the dependency graph.
+
 ## v0.1.1 - 2026-04-22
 
 ### Added
