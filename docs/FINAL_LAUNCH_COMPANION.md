@@ -1,6 +1,6 @@
 # Final Launch Companion
 
-Last updated: 2026-04-10
+Last updated: 2026-04-22
 
 This file is the single durable reference for the final launch-completion pass.
 
@@ -128,6 +128,78 @@ Why it matters:
 
 - there is now a real release artifact path instead of documentation-only launch claims
 
+### Turn 5 - Made Cache Loading Freshness-Aware
+
+Problem:
+
+- normal commands could reuse an existing cache without checking whether `~/.codex/sessions` had changed
+- users still had to remember `ccx index` when they wanted the latest history
+
+What changed:
+
+- `load_sessions()` now fingerprints the Codex session archive before accepting a cache
+- stale caches are rejected automatically
+- a short active-session timestamp grace window prevents Codex's own live transcript writes from forcing rebuild loops
+- if the cache is missing, commands scan and write a fresh cache
+- if the cache exists but is stale, commands scan, rewrite it, and report `session_source: auto-refresh`
+
+What new functionality appeared:
+
+- ordinary commands such as `resume`, `find`, `pack`, `projects`, and `dashboard` now self-heal stale cache state
+- `ccx index` remains available as an explicit manual rebuild command
+
+Verification:
+
+- unit tests still passed after the cache-path change
+- `ccx --help` compiled and exposed the expanded command surface
+
+### Turn 6 - Added Local Diagnostics With `ccx doctor`
+
+Problem:
+
+- first-time users had no simple way to see whether Codex history, CCX home, and cache freshness were wired correctly
+
+What changed:
+
+- added `ccx doctor`
+- it prints Codex home, sessions root, continuity home, cache file, cache existence, cache freshness, archive file count, cached session count, current repo, and a suggested dashboard command
+
+What new functionality appeared:
+
+- users can now debug setup and first-run state without reading source code or guessing paths
+
+### Turn 7 - Added Windows Install And Quickstart
+
+Problem:
+
+- the product still leaned too much on source-build paths and manually remembering `target\debug\ccx.exe`
+
+What changed:
+
+- added `scripts/install-windows.ps1`
+- the script installs `ccx.exe` to `%USERPROFILE%\.codex-continuity\bin`
+- it can optionally add that directory to the user PATH with `-AddToUserPath`
+- added `docs/QUICKSTART.md`
+- updated release packaging to include `QUICKSTART.md`
+
+What new functionality appeared:
+
+- users now have a clearer route from build artifact to globally runnable `ccx`
+- quickstart flow now begins with `ccx doctor`, then `ccx dashboard`
+
+Verification:
+
+- `cargo test` passed with `13` tests and `0` failures
+- `ccx doctor` reported stale cache before refresh, then `status: ready` after auto-refresh
+- `ccx resume --repo D:\saas-workspace\products\roompilot-ai` refreshed a stale cache automatically
+- temporary install smoke test copied `ccx.exe` into `C:\Users\AKR\.codex\tmp\ccx-install-smoke`
+- installed smoke-test binary ran `doctor` successfully
+- upgraded `ratatui` to `0.30.0` so the transitive `lru` dependency resolves to patched `lru 0.16.4`
+- `cargo tree -i lru` confirmed the patched dependency path
+- `v0.1.1` package zip and checksum were created
+- expanded `v0.1.1` zip contained the expected files
+- expanded `ccx.exe --version` returned `ccx 0.1.1`
+
 ## Part II - Beginner Tutorial
 
 ### What This Product Is
@@ -164,7 +236,7 @@ For a launch-day Windows user, the best path is:
 
 1. download the packaged Windows zip from the release
 2. extract it
-3. run `ccx.exe index`
+3. run `ccx.exe doctor`
 4. run `ccx.exe dashboard`
 
 If you want to build from source instead, use the source instructions below.
@@ -184,12 +256,18 @@ $env:PATH="$toolchain;" + $env:PATH
 cargo.exe build --bin ccx
 ```
 
-### First Run
-
-Build the cache:
+Install the binary so `ccx` is available from new terminals:
 
 ```powershell
-target\debug\ccx.exe index
+powershell -ExecutionPolicy Bypass -File .\scripts\install-windows.ps1 -AddToUserPath
+```
+
+### First Run
+
+Check archive/cache wiring:
+
+```powershell
+target\debug\ccx.exe doctor
 ```
 
 Then open the dashboard:
@@ -324,9 +402,11 @@ That means:
 
 If you use Codex heavily, the best routine is:
 
-1. run `ccx index` after a meaningful stretch of work
+1. run `ccx doctor` if setup or cache state looks suspicious
 2. open `ccx dashboard --repo <path>` when returning to a project
 3. use `ccx pack --repo <path>` before opening a fresh Codex session
+
+Normal commands refresh stale cache state automatically. Use `ccx index` only when you want to force a rebuild.
 
 That is the cleanest way to keep continuity without manually reconstructing old chats.
 

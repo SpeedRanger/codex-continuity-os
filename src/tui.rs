@@ -462,6 +462,7 @@ impl DashboardApp {
 
         let source_text = match self.source {
             SessionSource::Cache => "Hot path: reading from cache",
+            SessionSource::AutoRefresh => "Cache refreshed: archive changed",
             SessionSource::Scan => "Cold path: reading directly from archive",
         };
         let stats = Paragraph::new(Text::from(vec![
@@ -1170,6 +1171,7 @@ fn continuity_state_dir() -> PathBuf {
 fn continuity_home_dir() -> PathBuf {
     std::env::var_os("CODEX_CONTINUITY_HOME")
         .map(PathBuf::from)
+        .or_else(|| std::env::var_os("CCX_HOME").map(PathBuf::from))
         .or_else(|| {
             std::env::var_os("USERPROFILE")
                 .map(|value| PathBuf::from(value).join(".codex-continuity"))

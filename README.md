@@ -51,6 +51,8 @@ This project exists to solve that gap.
   - generate a compact resume pack for the next Codex chat
 - `ccx index`
   - rebuild the local cache
+- `ccx doctor`
+  - check Codex archive wiring, cache freshness, and the suggested dashboard command
 
 ## Why It Is Useful
 
@@ -79,35 +81,43 @@ $env:PATH="$toolchain;" + $env:PATH
 cargo.exe build --bin ccx
 ```
 
+Install the built binary into the local continuity home:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-windows.ps1 -AddToUserPath
+```
+
 To package a Windows release archive:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0
+powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.1
 ```
 
 That creates:
 
-- `dist\ccx-windows-x86_64-v0.1.0.zip`
-- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+- `dist\ccx-windows-x86_64-v0.1.1.zip`
+- `dist\ccx-windows-x86_64-v0.1.1.sha256.txt`
 
 ## First Run
 
-Build the local cache:
+Check that the local Codex archive and cache are wired correctly:
 
 ```powershell
-target\debug\ccx.exe index
+target\debug\ccx.exe doctor
 ```
 
-This creates:
-
-- `C:\Users\AKR\.codex-continuity\cache\session_index.tsv`
-
-Normal commands then prefer that cache for speed.
-
-Preferred entrypoint:
+Then open the dashboard:
 
 ```powershell
 target\debug\ccx.exe dashboard
+```
+
+Normal commands automatically refresh the cache when the Codex archive changes. You can still force a rebuild with `target\debug\ccx.exe index`.
+
+Preferred entrypoint after installing:
+
+```powershell
+ccx dashboard
 ```
 
 Inside the dashboard:
@@ -199,6 +209,7 @@ Near-term improvements:
 
 - [docs/PRD.md](./docs/PRD.md): canonical product requirements document
 - [docs/TASK_TRACKER.md](./docs/TASK_TRACKER.md): canonical project task list and priorities
+- [docs/QUICKSTART.md](./docs/QUICKSTART.md): shortest install, first-run, and daily workflow guide
 - [docs/USER_FLOWS.md](./docs/USER_FLOWS.md): key user journeys and workflow diagrams
 - [PROJECT_SPEC.md](./PROJECT_SPEC.md): compact product definition
 - [CONTINUITY.md](./CONTINUITY.md): current project state
@@ -209,6 +220,7 @@ Near-term improvements:
 - [docs/LAUNCH_READINESS.md](./docs/LAUNCH_READINESS.md): launch-facing verification and known limits
 - [docs/CODEX_CONTINUITY_OS_MVP.md](./docs/CODEX_CONTINUITY_OS_MVP.md): original MVP spec
 - [docs/IMPLEMENTATION_JOURNAL.md](./docs/IMPLEMENTATION_JOURNAL.md): step-by-step build log
+- [CHANGELOG.md](./CHANGELOG.md): release history
 - [SECURITY.md](./SECURITY.md): security reporting and repo security posture
 
 ## Contributing

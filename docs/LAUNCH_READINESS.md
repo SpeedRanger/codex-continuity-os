@@ -1,6 +1,6 @@
 # Launch Readiness
 
-Last updated: 2026-04-10
+Last updated: 2026-04-22
 
 ## Current Status
 
@@ -13,9 +13,12 @@ Public repository:
 The current build has:
 
 - cache-backed local session indexing
+- automatic cache refresh when the Codex archive changes
 - deterministic session digest extraction
 - interactive continuity dashboard
 - first-run onboarding/help overlay in the dashboard
+- `doctor` diagnostics for archive/cache/current-repo wiring
+- Windows install helper script
 - project grouping
 - repo resume
 - ranked session search
@@ -24,6 +27,7 @@ The current build has:
 - GitHub Actions CI
 - CodeQL workflow
 - Dependabot configuration
+- patched dependency floor for the previously reported low-severity transitive `lru` advisory
 - security policy
 - milestone git history
 - implementation journal
@@ -51,13 +55,13 @@ cargo.exe build --bin ccx
 To build a Windows release archive locally:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0
+powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.1
 ```
 
 This creates:
 
-- `dist\ccx-windows-x86_64-v0.1.0.zip`
-- `dist\ccx-windows-x86_64-v0.1.0.sha256.txt`
+- `dist\ccx-windows-x86_64-v0.1.1.zip`
+- `dist\ccx-windows-x86_64-v0.1.1.sha256.txt`
 
 Verified on 2026-04-10:
 
@@ -65,13 +69,25 @@ Verified on 2026-04-10:
 - zip artifact created successfully
 - SHA256 checksum file created successfully
 
+Verified on 2026-04-22 for `v0.1.1`:
+
+- package build succeeded
+- zip artifact created successfully
+- SHA256 checksum file created successfully
+- release zip expanded successfully
+- expanded package contained `ccx.exe`, `README.md`, `LICENSE`, `QUICKSTART.md`, and `QUICKSTART.txt`
+- expanded `ccx.exe doctor` ran successfully
+- expanded `ccx.exe --version` returned `ccx 0.1.1`
+
 ## First Run
 
 ```powershell
-target\debug\ccx.exe index
+target\debug\ccx.exe doctor
 ```
 
-This creates the local cache at:
+This verifies the Codex archive path, cache path, cache freshness, and suggested dashboard command.
+
+Normal commands now refresh the local cache automatically when `~/.codex/sessions` changes. The cache lives at:
 
 - `C:\Users\AKR\.codex-continuity\cache\session_index.tsv`
 
@@ -85,6 +101,7 @@ target\debug\ccx.exe dashboard
 
 ```powershell
 target\debug\ccx.exe dashboard --repo D:\saas-workspace\products\roompilot-ai
+target\debug\ccx.exe doctor
 target\debug\ccx.exe projects
 target\debug\ccx.exe resume --repo D:\saas-workspace\products\roompilot-ai
 target\debug\ccx.exe find "prompt profiles" --repo D:\saas-workspace\products\roompilot-ai
@@ -107,6 +124,12 @@ Manual verification completed against the live Codex archive:
 - dashboard detail pane showed extracted summary, verification notes, and next-step hint for `roompilot-ai`
 - dashboard snapshot now includes explicit why-this-session reasoning for the selected row
 - dashboard search mode filtered the session pane to the `prompt profiles` result
+- `doctor` reports archive path, cache file path, freshness, archive file count, and suggested dashboard command
+- cache loading now rejects stale cache headers and refreshes automatically on the next normal command
+- cache freshness includes a short active-session timestamp grace window so Codex logging does not cause repeated rebuilds during live use
+- temporary installer smoke test copied `ccx.exe` into `C:\Users\AKR\.codex\tmp\ccx-install-smoke` without modifying PATH
+- installed smoke-test binary ran `doctor` successfully
+- `cargo tree -i lru` confirmed `lru 0.16.4`
 - `projects` returned `28` grouped roots
 - `resume --repo roompilot-ai` recovered the correct March 27, 2026 session from a template workspace
 - `resume --repo roompilot-ai` now exposes summary, verification, and next-step fields directly
@@ -134,7 +157,7 @@ Automated verification:
 
 ## Known Limits
 
-- cache refresh is manual through `ccx index`
+- automatic cache refresh uses archive file count and newest modified timestamp with a short active-session grace window, not a per-file content hash
 - file extraction is heuristic, not AST- or git-diff-backed
 - session summarization is deterministic heuristic extraction, not full semantic LLM summarization
 - the dashboard currently optimizes for keyboard-driven operators, not first-time casual users

@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "v0.1.0",
+    [string]$Version = "v0.1.1",
     [string]$TargetDir = "C:\Users\AKR\.codex\tmp\ccx-release-target"
 )
 
@@ -40,6 +40,7 @@ try {
     Copy-Item -LiteralPath $binaryPath -Destination (Join-Path $stagingDir "ccx.exe")
     Copy-Item -LiteralPath (Join-Path $repoRoot "README.md") -Destination (Join-Path $stagingDir "README.md")
     Copy-Item -LiteralPath (Join-Path $repoRoot "LICENSE") -Destination (Join-Path $stagingDir "LICENSE")
+    Copy-Item -LiteralPath (Join-Path $repoRoot "docs\QUICKSTART.md") -Destination (Join-Path $stagingDir "QUICKSTART.md")
 
     @"
 Codex Continuity OS Windows release package.
@@ -50,9 +51,11 @@ Contents:
 - LICENSE
 
 Quick start:
-1. Run .\ccx.exe index
+1. Run .\ccx.exe doctor
 2. Run .\ccx.exe dashboard
 3. Use ? inside the dashboard for first-run help
+
+Normal commands refresh the cache automatically when Codex history changes.
 "@ | Set-Content -LiteralPath (Join-Path $stagingDir "QUICKSTART.txt")
 
     Compress-Archive -Path (Join-Path $stagingDir "*") -DestinationPath $zipPath

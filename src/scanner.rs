@@ -13,10 +13,26 @@ use walkdir::WalkDir;
 
 use crate::model::{ProjectSummary, SearchHit, SessionSummary};
 
+const CACHE_STALENESS_GRACE_SECONDS: u64 = 300;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionSource {
     Cache,
+    AutoRefresh,
     Scan,
+}
+
+#[derive(Debug, Clone)]
+pub struct CacheStatus {
+    pub codex_home: PathBuf,
+    pub sessions_root: PathBuf,
+    pub continuity_home: PathBuf,
+    pub cache_file: PathBuf,
+    pub cache_exists: bool,
+    pub cache_fresh: bool,
+    pub archive_file_count: usize,
+    pub archive_latest_modified_epoch: u64,
+    pub cached_session_count: Option<usize>,
 }
 
 pub fn scan_sessions() -> Result<Vec<SessionSummary>> {
@@ -44,14 +60,20 @@ pub fn scan_sessions() -> Result<Vec<SessionSummary>> {
 }
 
 pub fn load_sessions() -> Result<(Vec<SessionSummary>, SessionSource)> {
-    if let Some(cached) = read_cached_sessions(None)? {
+    let fingerprint = session_fingerprint()?;
+    if let Some(cached) = read_cached_sessions(Some(&fingerprint))? {
         return Ok((cached, SessionSource::Cache));
     }
 
-    let fingerprint = session_fingerprint()?;
+    let cache_existed = cache_file_path()?.exists();
     let sessions = scan_sessions()?;
     write_cached_sessions(&fingerprint, &sessions)?;
-    Ok((sessions, SessionSource::Scan))
+    let source = if cache_existed {
+        SessionSource::AutoRefresh
+    } else {
+        SessionSource::Scan
+    };
+    Ok((sessions, source))
 }
 
 pub fn rebuild_session_index() -> Result<Vec<SessionSummary>> {
@@ -59,6 +81,28 @@ pub fn rebuild_session_index() -> Result<Vec<SessionSummary>> {
     let sessions = scan_sessions()?;
     write_cached_sessions(&fingerprint, &sessions)?;
     Ok(sessions)
+}
+
+pub fn cache_status() -> Result<CacheStatus> {
+    let codex_home = codex_home()?;
+    let sessions_root = codex_home.join("sessions");
+    let continuity_home = continuity_home()?;
+    let cache_file = cache_file_path()?;
+    let cache_exists = cache_file.exists();
+    let fingerprint = session_fingerprint()?;
+    let cached = read_cached_sessions(Some(&fingerprint))?;
+
+    Ok(CacheStatus {
+        codex_home,
+        sessions_root,
+        continuity_home,
+        cache_file,
+        cache_exists,
+        cache_fresh: cached.is_some(),
+        archive_file_count: fingerprint.file_count,
+        archive_latest_modified_epoch: fingerprint.latest_modified_epoch,
+        cached_session_count: cached.map(|sessions| sessions.len()),
+    })
 }
 
 pub fn summarize_projects(sessions: &[SessionSummary]) -> Vec<ProjectSummary> {
@@ -519,6 +563,10 @@ fn continuity_home() -> Result<PathBuf> {
         return Ok(PathBuf::from(path));
     }
 
+    if let Ok(path) = env::var("CODEX_CONTINUITY_HOME") {
+        return Ok(PathBuf::from(path));
+    }
+
     let user_profile = env::var("USERPROFILE").context("USERPROFILE is not set")?;
     Ok(PathBuf::from(user_profile).join(".codex-continuity"))
 }
@@ -646,9 +694,24 @@ fn cache_header_matches(header: &str, fingerprint: Option<&SessionFingerprint>) 
 
     match fingerprint {
         Some(fingerprint) => {
-            file_count.parse::<usize>().ok() == Some(fingerprint.file_count)
-                && latest_modified_epoch.parse::<u64>().ok()
-                    == Some(fingerprint.latest_modified_epoch)
+            let Some(cached_file_count) = file_count.parse::<usize>().ok() else {
+                return false;
+            };
+            let Some(cached_latest_modified_epoch) = latest_modified_epoch.parse::<u64>().ok()
+            else {
+                return false;
+            };
+
+            if cached_latest_modified_epoch > fingerprint.latest_modified_epoch {
+                return false;
+            }
+
+            let latest_delta = fingerprint
+                .latest_modified_epoch
+                .saturating_sub(cached_latest_modified_epoch);
+
+            cached_file_count == fingerprint.file_count
+                && latest_delta <= CACHE_STALENESS_GRACE_SECONDS
         }
         None => true,
     }
@@ -916,6 +979,20 @@ mod tests {
                     .to_owned()
             )
         );
+    }
+
+    #[test]
+    fn cache_header_allows_active_session_timestamp_drift() {
+        let fingerprint = SessionFingerprint {
+            file_count: 10,
+            latest_modified_epoch: 1_000,
+        };
+
+        assert!(cache_header_matches("CCX2\t10\t950", Some(&fingerprint)));
+        assert!(cache_header_matches("CCX2\t10\t1000", Some(&fingerprint)));
+        assert!(!cache_header_matches("CCX2\t10\t1050", Some(&fingerprint)));
+        assert!(!cache_header_matches("CCX2\t10\t600", Some(&fingerprint)));
+        assert!(!cache_header_matches("CCX2\t11\t950", Some(&fingerprint)));
     }
 }
 
