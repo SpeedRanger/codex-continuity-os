@@ -1,6 +1,6 @@
 # Final Launch Companion
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 This file is the single durable reference for the final launch-completion pass.
 
@@ -225,6 +225,47 @@ Verification:
 - `cargo fmt --check` passed
 - `cargo test` passed with `13` tests and `0` failures
 - `cargo tree --target all -i rand` no longer finds `rand`
+
+### Turn 9 - Made The Public Repo Showcase-Ready
+
+Problem:
+
+- the GitHub repo is now part of how people judge the product
+- the code and release existed, but the public maintenance/security story needed to be visible and explicit
+
+What changed:
+
+- enabled private vulnerability reporting
+- enabled automatic branch deletion after merge
+- added README status badges
+- added a README security posture section
+- added `docs/REPO_SECURITY.md`
+- updated `SECURITY.md`
+- added structured bug and feature issue templates
+- added a PR template with verification and security checklist items
+
+What new functionality appeared:
+
+- no runtime command changed
+- the public repo now has a clearer contributor, security, and maintainer workflow
+
+Verification:
+
+- repo visibility is public
+- `main` is protected
+- required checks are `test`, `Analyze (actions)`, and `Analyze (rust)`
+- code-owner review is required
+- stale review dismissal is enabled
+- conversation resolution is required
+- admins are enforced
+- force pushes are disabled
+- branch deletion is disabled on `main`
+- secret scanning is enabled
+- push protection is enabled
+- private vulnerability reporting is enabled
+- Dependabot security updates are enabled
+- code scanning alerts returned no open alerts
+- secret scanning alerts returned no open alerts
 
 ## Part II - Beginner Tutorial
 

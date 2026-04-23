@@ -1,6 +1,6 @@
 # Task Tracker
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 This is the canonical project task list for Codex Continuity OS.
 
@@ -20,6 +20,10 @@ Status key:
 - `[now]` Maintain a proper product operating system in-repo
   - Why: planning is currently under-documented relative to the product ambition
   - Success: PRD, tracker, user flows, and launch docs stay aligned
+
+- `[now]` Maintain the public repo as a secure product showcase
+  - Why: the GitHub repo is now part of the product surface
+  - Success: branch protection, security docs, private vulnerability reporting, issue templates, PR template, release docs, and README status remain accurate
 
 ## Next
 
@@ -56,6 +60,11 @@ Status key:
 - `[done]` `ccx doctor` added for local archive/cache diagnostics and suggested launch command
 - `[done]` Windows install helper added for installing `ccx.exe` into the continuity home
 - `[done]` Quickstart doc added for install, first run, daily use, and cache behavior
+- `[done]` Private vulnerability reporting enabled on the public repo
+- `[done]` Automatic branch deletion after merge enabled
+- `[done]` README badges and public security section added
+- `[done]` Repo security posture doc added
+- `[done]` Issue templates and PR template added
 
 ## Current Recommendation
 

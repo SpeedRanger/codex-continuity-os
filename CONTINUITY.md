@@ -1,6 +1,6 @@
 # Continuity
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Current Goal
 
@@ -34,6 +34,7 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 - quickstart doc now exists at `docs/QUICKSTART.md`
 - automated unit tests now cover attribution, search, cache serialization, file detection, file filtering, and pack prioritization
 - public GitHub repo now exists at `https://github.com/SpeedRanger/codex-continuity-os`
+- public repo showcase posture now includes README badges, issue templates, PR template, private vulnerability reporting, and explicit repo-security documentation
 - canonical product docs now exist for PRD, task tracking, and user flows
 - verified recovery exists for `D:/saas-workspace/products/roompilot-ai`
 - current grouped project count is `28`
@@ -41,11 +42,11 @@ Ship the current CLI/TUI product as a launch-ready local-first continuity tool f
 
 ## Last Change
 
-Added freshness-aware cache loading, `ccx doctor`, a Windows install helper, and a dedicated quickstart doc so normal use no longer depends on manually remembering `ccx index` or `target\debug\ccx.exe`.
+Hardened and polished the public GitHub showcase surface: enabled private vulnerability reporting, enabled branch deletion after merge, added repo-security docs, added issue/PR templates, updated `SECURITY.md`, and corrected README launch/security status.
 
 ## Next Actions
 
-1. Verify the auto-refresh, doctor, install, and packaging paths end to end.
+1. Keep the public repo security posture in sync with actual GitHub settings.
 2. Tighten the dashboard UX so the front door feels more polished and more obvious.
 3. Improve file-evidence ranking so packs and summaries feel more trustworthy.
 4. Decide whether the next interface leap is a richer TUI pass or a local web UI.
@@ -61,6 +62,7 @@ Added freshness-aware cache loading, `ccx doctor`, a Windows install helper, and
 - Product docs are now materially better organized, but they still need to stay synchronized with implementation as the dashboard and summary model evolve.
 - The new summary layer is better than first-user / last-assistant extraction, but it is still deterministic heuristic extraction rather than true semantic summarization.
 - The dashboard onboarding state is stored under the product’s own continuity home, not in Codex state, which is the right boundary, but it is still minimal and local-only.
+- Public repo security is strong for current scope, but not maximal: commit signing and GitHub Actions SHA pinning are not required yet.
 
 ## Canonical Workspace
 

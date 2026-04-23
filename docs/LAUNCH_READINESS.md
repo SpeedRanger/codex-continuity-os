@@ -1,6 +1,6 @@
 # Launch Readiness
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Current Status
 
@@ -30,6 +30,9 @@ The current build has:
 - patched dependency floor for the previously reported low-severity transitive `lru` advisory
 - unused `ratatui` default features disabled so optional termwiz/phf/rand dependencies are not carried in the lockfile
 - security policy
+- private vulnerability reporting
+- issue templates and PR template
+- public repo security posture doc
 - milestone git history
 - implementation journal
 - unit tests covering the core heuristics
@@ -148,6 +151,24 @@ Manual verification completed against the live Codex archive:
 - `find "prompt profiles" --repo roompilot-ai` returned the expected March 24, 2026 session
 - `compare` correctly identified the March 27 session as the later continuation of the March 24 session
 - `pack --repo roompilot-ai` produced a usable resume block with the latest checkpoint, richer continuity summary, verification notes, and next-step hint
+
+Public repo verification completed on 2026-04-23:
+
+- repo visibility is public
+- `main` branch protection is enabled
+- required checks are `test`, `Analyze (actions)`, and `Analyze (rust)`
+- code-owner review is required
+- stale review dismissal is enabled
+- conversation resolution is required
+- admins are enforced
+- force pushes are disabled
+- deletion of `main` is disabled
+- secret scanning is enabled
+- push protection is enabled
+- private vulnerability reporting is enabled
+- Dependabot security updates are enabled
+- code scanning alerts returned no open alerts
+- secret scanning alerts returned no open alerts
 
 Scripted verification completed on 2026-04-06 with the isolated demo binary:
 
