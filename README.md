@@ -1,5 +1,10 @@
 # Codex Continuity OS
 
+[![CI](https://github.com/SpeedRanger/codex-continuity-os/actions/workflows/ci.yml/badge.svg)](https://github.com/SpeedRanger/codex-continuity-os/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/SpeedRanger/codex-continuity-os/actions/workflows/codeql.yml/badge.svg)](https://github.com/SpeedRanger/codex-continuity-os/actions/workflows/codeql.yml)
+[![Latest Release](https://img.shields.io/github/v/release/SpeedRanger/codex-continuity-os)](https://github.com/SpeedRanger/codex-continuity-os/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 Local-first continuity layer for Codex.
 
 Codex Continuity OS helps you recover context across chats, repos, branches, and indirect workspaces without modifying Codex itself. It reads your local Codex session archive, builds a project-aware index, and now gives you both a continuity dashboard and fast commands to resume work, search old sessions, compare two chats, and generate a resume pack for the next session.
@@ -7,6 +12,10 @@ Codex Continuity OS helps you recover context across chats, repos, branches, and
 Public repo:
 
 - `https://github.com/SpeedRanger/codex-continuity-os`
+
+Latest release:
+
+- `https://github.com/SpeedRanger/codex-continuity-os/releases/latest`
 
 ## Why This Exists
 
@@ -65,6 +74,8 @@ Codex Continuity OS can recover that relationship from the transcript and attrib
 ## Build
 
 This repo currently ships as a CLI/TUI project with source build instructions and a repeatable Windows packaging script.
+
+For the shortest setup path, see [docs/QUICKSTART.md](./docs/QUICKSTART.md).
 
 Clone it:
 
@@ -184,12 +195,31 @@ Verified against the real local Codex archive:
 
 Automated checks currently included:
 
-- `12` unit tests passed
+- `13` unit tests passed
 - `0` failures
+
+## Public Repo Security
+
+This repository is maintained as a public showcase repo with a protected `main` branch and security automation enabled.
+
+Current repo controls:
+
+- required PR checks: `test`, `Analyze (actions)`, `Analyze (rust)`
+- code-owner review required through [CODEOWNERS](./.github/CODEOWNERS)
+- stale review dismissal enabled
+- conversation resolution required before merge
+- admins enforced by branch protection
+- force-push and branch deletion blocked on `main`
+- secret scanning and push protection enabled
+- private vulnerability reporting enabled
+- Dependabot security updates enabled
+- CodeQL runs on PRs, pushes to `main`, and weekly schedule
+
+For the full maintenance posture, see [docs/REPO_SECURITY.md](./docs/REPO_SECURITY.md).
 
 ## Current Limits
 
-- cache refresh is explicit via `ccx index`
+- cache refresh is automatic when the local Codex archive changes; `ccx index` remains available for forced rebuilds
 - file extraction is heuristic, not git-diff-backed
 - repo attribution is heuristic, not a full project identity graph
 - there is no cross-platform installer yet; current launch shape is source repo plus Windows release packaging
@@ -210,6 +240,7 @@ Near-term improvements:
 - [docs/PRD.md](./docs/PRD.md): canonical product requirements document
 - [docs/TASK_TRACKER.md](./docs/TASK_TRACKER.md): canonical project task list and priorities
 - [docs/QUICKSTART.md](./docs/QUICKSTART.md): shortest install, first-run, and daily workflow guide
+- [docs/REPO_SECURITY.md](./docs/REPO_SECURITY.md): public repo security posture and maintenance checklist
 - [docs/USER_FLOWS.md](./docs/USER_FLOWS.md): key user journeys and workflow diagrams
 - [PROJECT_SPEC.md](./PROJECT_SPEC.md): compact product definition
 - [CONTINUITY.md](./CONTINUITY.md): current project state

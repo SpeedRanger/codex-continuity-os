@@ -11,8 +11,8 @@ This project is currently supported as the latest `main` branch on GitHub:
 If you find a security issue:
 
 1. Do not open a public issue with exploit details.
-2. Report it privately through GitHub security reporting if available on the repo.
-3. If private reporting is not available, contact the maintainer directly before disclosing details publicly.
+2. Report it privately through GitHub private vulnerability reporting.
+3. If private reporting is unavailable, contact the maintainer directly before disclosing details publicly.
 
 Please include:
 
@@ -50,3 +50,18 @@ Current focus is on:
 - avoiding secret leakage
 - keeping the repo dependency surface small
 - keeping automation minimal and auditable
+
+## Repository Controls
+
+The public repository is maintained with:
+
+- protected `main`
+- required CI and CodeQL checks
+- code-owner review requirement
+- stale review dismissal
+- required conversation resolution
+- secret scanning and push protection
+- private vulnerability reporting
+- Dependabot security updates
+
+For the full public repo posture, see [docs/REPO_SECURITY.md](./docs/REPO_SECURITY.md).

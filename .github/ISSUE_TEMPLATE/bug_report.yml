@@ -1,0 +1,48 @@
+name: Bug Report
+description: Report a reproducible problem with Codex Continuity OS.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not include private Codex transcripts, secrets, API keys, or sensitive local paths unless they are already safe to share publicly.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What went wrong?
+      placeholder: "ccx dashboard failed to..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction Steps
+      description: Exact commands or steps.
+      placeholder: |
+        1. Run `ccx doctor`
+        2. Run `ccx dashboard --repo ...`
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `ccx --version`.
+      placeholder: "ccx 0.1.2"
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, shell, install method, and relevant `ccx doctor` output with sensitive paths redacted.
+      render: text

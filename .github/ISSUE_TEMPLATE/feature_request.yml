@@ -1,0 +1,38 @@
+name: Feature Request
+description: Suggest an improvement to the product.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow pain should this solve?
+      placeholder: "When I return to a repo after a break, I need..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: What should CCX do?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Product Surface
+      options:
+        - dashboard
+        - resume/find/compare/pack CLI
+        - indexing/cache
+        - summarization/digests
+        - install/release
+        - docs
+        - other
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any workaround or alternative approach?

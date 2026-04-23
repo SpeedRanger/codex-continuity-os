@@ -1506,9 +1506,76 @@ Release packages now include `QUICKSTART.md` in addition to the short `QUICKSTAR
 
 This is a launch-polish step. A product that requires users to remember build target paths feels unfinished; a product with a diagnostic command and install helper feels much closer to usable.
 
+## Step 27 - Hardened The Public Showcase Repo
+
+### Why
+
+The GitHub repository is now part of the product surface.
+
+It needs to look and behave like a maintained public product repo, not just a place where code was pushed.
+
+### What changed
+
+GitHub settings updated:
+
+- private vulnerability reporting enabled
+- automatic branch deletion after merge enabled
+
+Added:
+
+- `docs/REPO_SECURITY.md`
+- `.github/pull_request_template.md`
+- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/feature_request.yml`
+- `.github/ISSUE_TEMPLATE/config.yml`
+
+Updated:
+
+- `README.md`
+- `SECURITY.md`
+- `CONTINUITY.md`
+- `docs/TASK_TRACKER.md`
+
+### What functionality this added
+
+The public repo now has a clearer maintainer and contributor flow:
+
+- README badges for CI, CodeQL, release, and license
+- a public security posture section
+- private security reporting route
+- structured bug reports
+- structured feature requests
+- PR checklist for verification, docs, and dependency/security review
+
+### Verification
+
+Checked GitHub repo state:
+
+- repo is public
+- `main` is protected
+- required checks are `test`, `Analyze (actions)`, and `Analyze (rust)`
+- code-owner review is required
+- stale reviews are dismissed
+- conversation resolution is required
+- admins are enforced
+- force pushes are disabled
+- branch deletion is disabled on `main`
+- secret scanning is enabled
+- push protection is enabled
+- private vulnerability reporting is enabled
+- Dependabot security updates are enabled
+- code scanning alerts are empty
+- secret scanning alerts are empty
+
+### Why this matters
+
+This makes the repo showcase-ready.
+
+People evaluating the project can now see not only the product idea and release artifacts, but also the maintenance discipline around the public codebase.
+
 ## Current Plan From Here
 
-1. Verify the new `doctor`, auto-refresh, install, and packaging paths.
+1. Keep the public repo posture aligned with actual GitHub settings.
 2. Improve dashboard empty states and low-width behavior.
 3. Improve file-evidence quality so generated packs and summaries feel more trustworthy.
 4. Decide whether the next major surface should be richer TUI or a local web UI.
